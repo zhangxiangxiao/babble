@@ -121,33 +121,41 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         return grads, net_outputs, loss_outputs, states
     return ModelTuple(forward, backward, initial_params, initial_states)
 
+
 def Enc():
     """Encoder."""
     pass
+
 
 def Dec():
     """Decoder."""
     pass
 
+
 def Inj():
     """Noise injector."""
     pass
+
 
 def Rnd():
     """Random number generator."""
     pass
 
+
 def Disc():
     """Discriminator."""
     pass
+
 
 def AELoss():
     """Auto-Encoder loss."""
     pass
 
+
 def GenLoss():
     """Generator loss."""
     pass
+
 
 def DiscLoss():
     """Discriminator loss."""
