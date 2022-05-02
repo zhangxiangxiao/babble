@@ -59,9 +59,9 @@ class ATNNFAETest(absltest.TestCase):
                     xnn.LogCosh()),
                 # [fake, fake] -> fake_logcosh
                 xnn.Sequential(
-                    # [fake, fake] -> [fake, ones]
-                    xnn.Parallel(xnn.Identity(), xnn.OnesLike()),
-                    # [fake, ones] -> fake_logcosh
+                    # [fake, fake] -> [fake, -ones]
+                    xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)),
+                    # [fake, -ones] -> fake_logcosh
                     xnn.LogCosh())),
             # [real_logcosh, fake_logcosh] -> loss
             xnn.Add(), xnn.Mean())
