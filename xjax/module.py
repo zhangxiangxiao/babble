@@ -161,7 +161,11 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         ResLinear(in_dim, feat_dim, feat_dim, transfer,
                   w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)),
         # features, shape=(l, f) -> features, shape=(f, l)
-        xnn.Transpose()))
+        xnn.Transpose(),
+        transfer(),
+        ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
+                transfer=transfer, w_init=jinit.normal(sigma),
+                b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
         # features -> features
         layers.append(xnn.Sequential(
