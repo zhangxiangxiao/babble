@@ -1,6 +1,7 @@
 """Unit tests for model module."""
 
-from model import ATNNFAE
+from model import ATNNFAE, Encoder, Decoder, Discriminator, Injector, Random
+from model import AELoss, GenLoss, DiscLoss
 
 import math
 
