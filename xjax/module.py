@@ -10,9 +10,9 @@ from xjax.xnn import Linear, Conv, Deconv, ResizeLike, ReLU
 def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
     """Residually connected layer with resizing."""
     # inputs -> res_out
-    return xnn.Sequence(
+    return xnn.Sequential(
         # inputs -> [inputs] -> [inputs, inputs]
-        xnn.pack(), xnn.Group([0, 0]),
+        xnn.Pack(), xnn.Group([0, 0]),
         # [inputs, inputs] -> [outputs, inputs]
         xnn.Parallel(
             # inputs -> inputs
@@ -24,7 +24,7 @@ def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
 
 
 def ResLinear(in_dim, feat_dim, out_dim, transfer=ReLU, resize=ResizeLike,
-              w_init=jinit.normal(1e-6), b_winit=jinit.normal(1e-6), rng=None):
+              w_init=jinit.normal(1e-6), b_init=jinit.normal(1e-6), rng=None):
     """Residually connected linear layer."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
     linear1 = Linear(in_dim, feat_dim, w_init, b_init, rng1)
@@ -55,6 +55,6 @@ def ResDeconv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
     deconv1 = Deconv(in_dim, feat_dim, first_kernel, first_stride,
                      first_dilation, first_padding, w_init, b_init, rng1)
-    deconv2 = Deonv(feat_dim, out_dim, second_kernel, second_stride,
-                    second_dilation, second_padding, w_init, b_init, rng2)
+    deconv2 = Deconv(feat_dim, out_dim, second_kernel, second_stride,
+                     second_dilation, second_padding, w_init, b_init, rng2)
     return Residual(deconv1, deconv2, transfer, resize)
