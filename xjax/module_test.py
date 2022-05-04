@@ -153,5 +153,39 @@ class DiscriminatorTest(absltest.TestCase):
         self.assertEqual((2, 2, 8), outputs[3].shape)
 
 
+class InjectorTest(absltest.TestCase):
+    def setUp(self):
+        self.module = Injector(1e-1)
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+
+class RandomTest(absltest.TestCase):
+    def setUp(self):
+        self.module = Random()
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+
 if __name__ == '__main__':
     absltest.main()
