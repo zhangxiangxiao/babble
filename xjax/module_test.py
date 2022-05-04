@@ -1,6 +1,8 @@
 """Unit tests for module."""
 
 from module import Residual, ResLinear, ResConv, ResDeconv
+from module import Encoder, Decoder, Discriminator, Injector, Random
+from module import AELoss, GenLoss, DiscLoss
 
 from absl.testing import absltest
 import jax
@@ -90,6 +92,65 @@ class ResDeconvTest(absltest.TestCase):
         inputs = jrand.normal(xrand.split(), (2, 4, 16))
         outputs, states = forward(params, inputs, states)
         self.assertEqual((2, 2, 32), outputs.shape)
+
+
+class EncoderTest(absltest.TestCase):
+    def setUp(self):
+        self.module = Encoder(2, 2, 4, 8, 2)
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 16))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((2, 8), outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 16))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((2, 2, 8), outputs.shape)
+
+
+class DecoderTest(absltest.TestCase):
+    def setUp(self):
+        self.module = Decoder(2, 2, 4, 8, 2)
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 4))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((2, 8), outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 4))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((2, 2, 8), outputs.shape)
+
+
+class DiscriminatorTest(absltest.TestCase):
+    def setUp(self):
+        self.module = Discriminator(2, 2, 4, 8, 2)
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 16))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(4, len(outputs))
+        self.assertEqual((2, 16), outputs[0].shape)
+        self.assertEqual((2, 16), outputs[1].shape)
+        self.assertEqual((2, 8), outputs[2].shape)
+        self.assertEqual((2, 8), outputs[3].shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 16))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(4, len(outputs))
+        self.assertEqual((2, 2, 16), outputs[0].shape)
+        self.assertEqual((2, 2, 16), outputs[1].shape)
+        self.assertEqual((2, 2, 8), outputs[2].shape)
+        self.assertEqual((2, 2, 8), outputs[3].shape)
 
 
 if __name__ == '__main__':
