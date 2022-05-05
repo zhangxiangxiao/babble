@@ -10,13 +10,14 @@ class DataTest(absltest.TestCase):
         data = Data(filename='data/obama/train.h5', batch=4, step=4, min_len=1,
                     max_len=64, cache=True)
         for i in range(4):
-            inputs_bytes, inputs_weight = data.get_batch()
-            self.assertEqual(2, inputs_bytes.ndim)
-            self.assertEqual(2, inputs_weight.ndim)
-            self.assertEqual(4, inputs_bytes.shape[0])
-            self.assertEqual(4, inputs_weight.shape[0])
-            self.assertEqual(0, inputs_bytes.shape[1] % 4)
-            self.assertEqual(0, inputs_weight.shape[1] % 4)
+            inputs, weights = data.get_batch()
+            self.assertEqual(3, inputs.ndim)
+            self.assertEqual(2, weights.ndim)
+            self.assertEqual(4, inputs.shape[0])
+            self.assertEqual(4, weights.shape[0])
+            self.assertEqual(256, inputs.shape[1])
+            self.assertEqual(0, weights.shape[1] % 4)
+            self.assertEqual(0, inputs.shape[2] % 4)
 
 
 if __name__ == '__main__':

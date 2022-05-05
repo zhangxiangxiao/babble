@@ -1,6 +1,8 @@
 """ Data class."""
 
 import h5py
+import jax.nn as jnn
+import jax.numpy as jnp
 import numpy
 import random
 
@@ -79,4 +81,5 @@ class Data:
             inputs_bytes[i, 0:content_length] = self.content[
                 content_index:(content_index + content_length)]
             inputs_weight[i, 0:content_length] = inputs_length / content_length
-        return inputs_bytes, inputs_weight
+        inputs = jnp.transpose(jnn.one_hot(inputs_bytes, 256), (0, 2, 1))
+        return inputs, inputs_weight
