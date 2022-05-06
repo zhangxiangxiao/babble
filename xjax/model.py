@@ -41,7 +41,8 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         enc_states, dec_states, disc_states = states[:3]
         inj_states, rnd_states = states[3:5]
         ae_loss_states, gen_loss_states, disc_loss_states = states[5:]
-        enc_outputs, enc_states = enc_forward(enc_params, inputs, enc_states)
+        targets, weights = inputs
+        enc_outputs, enc_states = enc_forward(enc_params, targets, enc_states)
         inj_outputs, inj_states = inj_forward(
             inj_params, enc_outputs, inj_states)
         rnd_outputs, rnd_states = rnd_forward(
@@ -57,7 +58,7 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         disc_outputs = [real_outputs, fake_outputs]
         net_outputs = [dec_outputs, gen_outputs, disc_outputs]
         ae_loss_outputs, ae_loss_states = ae_loss_forward(
-            ae_loss_params, [dec_outputs, inputs], ae_loss_states)
+            ae_loss_params, [dec_outputs, targets, weights], ae_loss_states)
         gen_loss_outputs, gen_loss_states = gen_loss_forward(
             gen_loss_params, fake_outputs, gen_loss_states)
         disc_loss_outputs, disc_loss_states = disc_loss_forward(
@@ -71,9 +72,10 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         enc_states, dec_states, disc_states = states[:3]
         inj_states, rnd_states = states[3:5]
         ae_loss_states, gen_loss_states, disc_loss_states = states[5:]
+        targets, weights = inputs
         # Forward propagate and build backward graph.
         enc_vjpf, enc_outputs, ens_states = vjp(
-            enc_forward, enc_params, inputs, enc_states)
+            enc_forward, enc_params, targets, enc_states)
         inj_vjpf, inj_outputs, inj_states = vjp_inputs(
             inj_forward, inj_params, enc_outputs, inj_states)
         rnd_outputs, rnd_states = rnd_forward(
@@ -89,7 +91,7 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         disc_outputs = [real_outputs, fake_outputs]
         net_outputs = [dec_outputs, gen_outputs, disc_outputs]
         ae_loss_vjpf, ae_loss_outputs, ae_loss_states = vjp_inputs(
-            ae_loss_forward, ae_loss_params, [dec_outputs, inputs],
+            ae_loss_forward, ae_loss_params, [dec_outputs, targets, weights],
             ae_loss_states)
         gen_loss_vjpf, gen_loss_outputs, gen_loss_states = vjp_inputs(
             gen_loss_forward, gen_loss_params, fake_outputs, gen_loss_states)
@@ -100,7 +102,7 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
                   ae_loss_states, gen_loss_states, disc_loss_states]
         # Backward propagate to autoencoder.
         grads_ae_loss_outputs = map_ones_like(ae_loss_outputs)
-        grads_dec_outputs, _ = ae_loss_vjpf(grads_ae_loss_outputs)
+        grads_dec_outputs, _, _ = ae_loss_vjpf(grads_ae_loss_outputs)
         grads_dec_params_ae, grads_inj_outputs = dec_vjpf(grads_dec_outputs)
         grads_enc_outputs = inj_vjpf(grads_inj_outputs)
         grads_enc_params = enc_vjpf(grads_enc_outputs)

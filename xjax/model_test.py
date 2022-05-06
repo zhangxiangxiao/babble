@@ -1,7 +1,6 @@
 """Unit tests for model module."""
 
-from model import ATNNFAE, Encoder, Decoder, Discriminator, Injector, Random
-from model import AELoss, GenLoss, DiscLoss
+from model import ATNNFAE
 
 import math
 
@@ -37,7 +36,17 @@ class ATNNFAETest(absltest.TestCase):
         # Random generator.
         self.rnd = xnn.NormalLike()
         # Auto-encoder loss is square loss.
-        self.ae_loss = xnn.Sequential(xnn.Subtract(), xnn.Square(), xnn.Sum())
+        self.ae_loss = xnn.Sequential(
+            # [outputs, targets, weights] -> [[outputs, targets], weights]
+            xnn.Group([[0, 1], 2]),
+            # [[outputs, targets], weights] -> [loss, weights]
+            xnn.Parallel(
+                # [outputs, targets] -> loss
+                xnn.Sequential(xnn.Subtract(), xnn.Square(), xnn.Sum()),
+                # weights -> weights
+                xnn.Identity()),
+            # [loss, weights] -> weight
+            xnn.Multiply())
         # Generator loss is log-cosh loss towards 0.
         self.gen_loss = xnn.Sequential(
             # inputs -> [inputs] -> [inputs, inputs]
@@ -70,7 +79,7 @@ class ATNNFAETest(absltest.TestCase):
         self.model = ATNNFAE(self.enc, self.dec, self.disc, self.inj, self.rnd,
                              self.ae_loss, self.gen_loss, self.disc_loss)
         # Inputs is a vector of size 8.
-        self.inputs = jrand.normal(xrand.split(), shape=(8,))
+        self.inputs = [jrand.normal(xrand.split(), shape=(8,)), 1.1]
 
 
     def test_forward(self):
@@ -81,7 +90,7 @@ class ATNNFAETest(absltest.TestCase):
         real_outputs, fake_outputs = disc_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         enc_forward, enc_params, enc_states = self.enc
-        enc_outputs, enc_states = enc_forward(enc_params, inputs, enc_states)
+        enc_outputs, enc_states = enc_forward(enc_params, inputs[0], enc_states)
         inj_forward, inj_params, inj_states = self.inj
         inj_outputs, inj_states = inj_forward(
             inj_params, enc_outputs, inj_states)
@@ -104,7 +113,7 @@ class ATNNFAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_fake_outputs, fake_outputs))
         ae_loss_forward, ae_loss_params, ae_loss_states = self.ae_loss
         ref_ae_loss_outputs, ae_loss_states = ae_loss_forward(
-            ae_loss_params, [dec_outputs, inputs], ae_loss_states)
+            ae_loss_params, [dec_outputs, inputs[0], inputs[1]], ae_loss_states)
         self.assertTrue(jnp.allclose(ref_ae_loss_outputs, ae_loss_outputs))
         gen_loss_forward, gen_loss_params, gen_loss_states = self.gen_loss
         ref_gen_loss_outputs, gen_loss_states = gen_loss_forward(
@@ -149,7 +158,8 @@ class ATNNFAETest(absltest.TestCase):
 
     def test_vmap(self):
         forward, backward, params, states = xmod.vmap(self.model, 2)
-        inputs = jrand.normal(xrand.split(), (2, 8))
+        inputs = [jrand.normal(xrand.split(), (2, 8)),
+                  jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
         dec_outputs, gen_outputs, disc_outputs = net_outputs
         real_outputs, fake_outputs = disc_outputs
