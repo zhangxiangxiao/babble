@@ -228,15 +228,20 @@ def AELoss():
     """Auto-Encoder loss. The loss is log-softmax on log-sigmoid, defined as
     Prob(i) = (1 + exp(y_i)) / sum_j(1 + exp(y_j))
     """
-    # [outputs, targets] -> loss
+    # [outputs, targets, weights] -> loss
     return xnn.Sequential(
-        # [outputs, targets] -> [logsoftmax, targets]
+        # [outputs, targets, weights] -> [neglogsoftmax, targets, weights]
         xnn.Parallel(
             xnn.Sequential(
-                xnn.MulConst(-1), xnn.LogSigmoid(), xnn.LogSoftmax(axis=0)),
-            xnn.Identity()),
-        # [logsoftmax, targets] -> loss
-        xnn.Multiply(), xnn.Mean())
+                xnn.MulConst(-1), xnn.LogSigmoid(), xnn.LogSoftmax(axis=0),
+                xnn.MulConst(-1)),
+            xnn.Identity(), xnn.Identity()),
+        # [neglogsoftmax, targets, weights] -> [loss, weights]
+        xnn.Group([[0, 1], 2]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
+        # [loss, weights] -> [[loss, weights], weights] -> [loss, weights]
+        xnn.Group([[0, 1], 1]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
+        # [loss, weights] -> [loss_sum, weights_sum] -> loss_mean
+        xnn.Parallel(xnn.Sum(), xnn.Sum()), xnn.Divide())
 
 
 def GenLoss():

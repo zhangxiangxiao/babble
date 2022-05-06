@@ -3,6 +3,7 @@
 from data import Data
 
 from absl.testing import absltest
+import numpy as np
 
 
 class DataTest(absltest.TestCase):

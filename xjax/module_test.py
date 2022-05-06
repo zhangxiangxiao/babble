@@ -194,14 +194,16 @@ class AELossTest(absltest.TestCase):
     def test_forward(self):
         forward, params, states = self.module
         inputs = [jrand.normal(xrand.split(), (4, 8)),
-                  jrand.normal(xrand.split(), (4, 8))]
+                  jrand.normal(xrand.split(), (4, 8)),
+                  jrand.normal(xrand.split(), (8, ))]
         outputs, states = forward(params, inputs, states)
         self.assertEqual((), outputs.shape)
 
     def test_vmap(self):
         forward, params, states = xnn.vmap(self.module, 2)
         inputs = [jrand.normal(xrand.split(), (2, 4, 8)),
-                  jrand.normal(xrand.split(), (2, 4, 8))]
+                  jrand.normal(xrand.split(), (2, 4, 8)),
+                  jrand.normal(xrand.split(), (2, 8))]
         outputs, states = forward(params, inputs, states)
         self.assertEqual((2,), outputs.shape)
 
