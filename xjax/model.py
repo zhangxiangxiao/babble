@@ -43,26 +43,28 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         ae_loss_states, gen_loss_states, disc_loss_states = states[5:]
         targets, weights = inputs
         enc_outputs, enc_states = enc_forward(enc_params, targets, enc_states)
+        tar_outputs, dec_states = dec_forward(
+            dec_params, enc_outputs, dec_states)
         inj_outputs, inj_states = inj_forward(
             inj_params, enc_outputs, inj_states)
-        rnd_outputs, rnd_states = rnd_forward(
-            rnd_params, enc_outputs, rnd_states)
         dec_outputs, dec_states = dec_forward(
             dec_params, inj_outputs, dec_states)
+        rnd_outputs, rnd_states = rnd_forward(
+            rnd_params, enc_outputs, rnd_states)
         gen_outputs, dec_states = dec_forward(
             dec_params, rnd_outputs, dec_states)
         real_outputs, disc_states = disc_forward(
-            disc_params, dec_outputs, disc_states)
+            disc_params, tar_outputs, disc_states)
         fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
-        disc_outputs = [real_outputs, fake_outputs]
-        net_outputs = [dec_outputs, gen_outputs, disc_outputs]
+        net_outputs = [tar_outputs, dec_outputs, gen_outputs,
+                       real_outputs, fake_outputs]
         ae_loss_outputs, ae_loss_states = ae_loss_forward(
             ae_loss_params, [dec_outputs, targets, weights], ae_loss_states)
         gen_loss_outputs, gen_loss_states = gen_loss_forward(
             gen_loss_params, fake_outputs, gen_loss_states)
         disc_loss_outputs, disc_loss_states = disc_loss_forward(
-            disc_loss_params, disc_outputs, disc_loss_states)
+            disc_loss_params, [real_outputs, fake_outputs], disc_loss_states)
         states = (enc_states, dec_states, disc_states, inj_states, rnd_states,
                   ae_loss_states, gen_loss_states, disc_loss_states)
         loss_outputs = [ae_loss_outputs, gen_loss_outputs, disc_loss_outputs]
@@ -76,27 +78,30 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         # Forward propagate and build backward graph.
         enc_vjpf, enc_outputs, ens_states = vjp(
             enc_forward, enc_params, targets, enc_states)
+        tar_outputs, dec_states = dec_forward(
+            dec_params, enc_outputs, dec_states)
         inj_vjpf, inj_outputs, inj_states = vjp_inputs(
             inj_forward, inj_params, enc_outputs, inj_states)
-        rnd_outputs, rnd_states = rnd_forward(
-            rnd_params, enc_outputs, rnd_states)
         dec_vjpf, dec_outputs, dec_states = vjp_full(
             dec_forward, dec_params, inj_outputs, dec_states)
+        rnd_outputs, rnd_states = rnd_forward(
+            rnd_params, enc_outputs, rnd_states)
         gen_vjpf, gen_outputs, dec_states = vjp(
             dec_forward, dec_params, rnd_outputs, dec_states)
         disc_vjpf_real, real_outputs, disc_states = vjp(
-            disc_forward, disc_params, dec_outputs, disc_states)
+            disc_forward, disc_params, tar_outputs, disc_states)
         disc_vjpf_fake, fake_outputs, disc_states = vjp_full(
             disc_forward, disc_params, gen_outputs, disc_states)
-        disc_outputs = [real_outputs, fake_outputs]
-        net_outputs = [dec_outputs, gen_outputs, disc_outputs]
+        net_outputs = [tar_outputs, dec_outputs, gen_outputs,
+                       real_outputs, fake_outputs]
         ae_loss_vjpf, ae_loss_outputs, ae_loss_states = vjp_inputs(
             ae_loss_forward, ae_loss_params, [dec_outputs, targets, weights],
             ae_loss_states)
         gen_loss_vjpf, gen_loss_outputs, gen_loss_states = vjp_inputs(
             gen_loss_forward, gen_loss_params, fake_outputs, gen_loss_states)
         disc_loss_vjpf, disc_loss_outputs, disc_loss_states = vjp_inputs(
-            disc_loss_forward, disc_loss_params, disc_outputs, disc_loss_states)
+            disc_loss_forward, disc_loss_params, [real_outputs, fake_outputs],
+            disc_loss_states)
         loss_outputs = [ae_loss_outputs, gen_loss_outputs, disc_loss_outputs]
         states = [enc_states, dec_states, disc_states, inj_states, rnd_states,
                   ae_loss_states, gen_loss_states, disc_loss_states]

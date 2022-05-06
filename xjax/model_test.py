@@ -26,11 +26,20 @@ class ATNNFAETest(absltest.TestCase):
             xnn.Linear(8, 16), xnn.ReLU(), xnn.Linear(16, 1), xnn.Mean())
         # Noise injector adds noise from normal distribution.
         self.inj = xnn.Sequential(
-            # inputs -> [inputs] -> [inputs, inputs]
-            xnn.Pack(), xnn.Group([0, 0]),
-            # [inputs, inputs] -> [inputs, noise]
-            xnn.Parallel(xnn.Identity(),
-                         xnn.Sequential(xnn.NormalLike(), xnn.MulConst(0.1))),
+            # inputs -> [inputs] -> [inputs, [inputs, inputs]]
+            xnn.Pack(), xnn.Group([0, [0, 0]]),
+            # [inputs, [inputs, inputs]] -> [inputs, noise]
+            xnn.Parallel(
+                # inputs -> inputs
+                xnn.Identity(),
+                # [inputs, inputs] -> noise
+                xnn.Sequential(
+                    # [inputs, inputs] -> [noise, scale]
+                    xnn.Parallel(
+                        xnn.NormalLike(),
+                        xnn.Sequential(xnn.Exponential(), xnn.MulConst(0.1))),
+                    # [noise, scale] -> noise
+                    xnn.Multiply())),
             # [inputs, noise] -> [inputs + noise]
             xnn.Add())
         # Random generator.
@@ -86,15 +95,18 @@ class ATNNFAETest(absltest.TestCase):
         forward, _, params, states = self.model
         inputs = self.inputs
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        dec_outputs, gen_outputs, disc_outputs = net_outputs
-        real_outputs, fake_outputs = disc_outputs
+        (tar_outputs, dec_outputs, gen_outputs, real_outputs,
+         fake_outputs) = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         enc_forward, enc_params, enc_states = self.enc
         enc_outputs, enc_states = enc_forward(enc_params, inputs[0], enc_states)
+        dec_forward, dec_params, dec_states = self.dec
+        ref_tar_outputs, dec_states = dec_forward(
+            dec_params, enc_outputs, dec_states)
+        self.assertTrue(jnp.allclose(ref_tar_outputs, tar_outputs))
         inj_forward, inj_params, inj_states = self.inj
         inj_outputs, inj_states = inj_forward(
             inj_params, enc_outputs, inj_states)
-        dec_forward, dec_params, dec_states = self.dec
         ref_dec_outputs, dec_states = dec_forward(
             dec_params, inj_outputs, dec_states)
         self.assertTrue(jnp.allclose(ref_dec_outputs, dec_outputs))
@@ -106,7 +118,7 @@ class ATNNFAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_gen_outputs, gen_outputs))
         disc_forward, disc_params, disc_states = self.disc
         ref_real_outputs, disc_states = disc_forward(
-            disc_params, dec_outputs, disc_states)
+            disc_params, tar_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_real_outputs, real_outputs))
         ref_fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
@@ -121,7 +133,7 @@ class ATNNFAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_gen_loss_outputs, gen_loss_outputs))
         disc_loss_forward, disc_loss_params, disc_loss_states = self.disc_loss
         ref_disc_loss_outputs, disc_loss_states = disc_loss_forward(
-            disc_loss_params, disc_outputs, disc_loss_states)
+            disc_loss_params, [real_outputs, fake_outputs], disc_loss_states)
         self.assertTrue(jnp.allclose(ref_disc_loss_outputs, disc_loss_outputs))
 
     def test_backward(self):
@@ -161,9 +173,10 @@ class ATNNFAETest(absltest.TestCase):
         inputs = [jrand.normal(xrand.split(), (2, 8)),
                   jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        dec_outputs, gen_outputs, disc_outputs = net_outputs
-        real_outputs, fake_outputs = disc_outputs
+        [tar_outputs, dec_outputs, gen_outputs, real_outputs,
+         fake_outputs] = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
+        self.assertEqual((2, 8), tar_outputs.shape)
         self.assertEqual((2, 8), dec_outputs.shape)
         self.assertEqual((2, 8), gen_outputs.shape)
         self.assertEqual((2,), real_outputs.shape)
