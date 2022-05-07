@@ -230,7 +230,7 @@ def FeatureRandom():
     return xnn.NormalLike()
 
 
-def AELoss():
+def AELoss(weight=1):
     """Auto-Encoder loss. The loss is log-softmax on log-sigmoid, defined as
     Prob(i) = (1 + exp(y_i)) / sum_j(1 + exp(y_j))
     """
@@ -247,10 +247,10 @@ def AELoss():
         # [loss, weights] -> [[loss, weights], weights] -> [loss, weights]
         xnn.Group([[0, 1], 1]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
         # [loss, weights] -> [loss_sum, weights_sum] -> loss_mean
-        xnn.Parallel(xnn.Sum(), xnn.Sum()), xnn.Divide())
+        xnn.Parallel(xnn.Sum(), xnn.Sum()), xnn.Divide(), xnn.MulConst(weight))
 
 
-def GenLoss():
+def GenLoss(weight=1):
     """Generator loss. LogCosh with zero."""
     # outputs, pytree -> loss, scalar
     return xnn.Sequential(
@@ -259,10 +259,11 @@ def GenLoss():
         # [outputs, outputs] -> [outputs, zeros]
         xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
         # [outputs, zeros] -> loss
-        xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean())
+        xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
+        xnn.MulConst(weight))
 
 
-def DiscLoss():
+def DiscLoss(weight=1):
     """Discriminator loss. LogCosh with zero for real, negative one for fake."""
     # [real, fake] -> loss
     return xnn.Sequential(
@@ -277,4 +278,4 @@ def DiscLoss():
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
-        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean())
+        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
