@@ -204,22 +204,28 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     return xnn.Sequential(dense, shared)
 
 
-def Injector(sigma):
+def FeatureInjector(beta=0.1):
     """Noise injector."""
     return xnn.Sequential(
-        # inputs -> [inputs] -> [inputs, inputs]
-        xnn.Pack(), xnn.Group([0, 0]),
-        # [inputs, inputs] -> [inputs, noise]
+        # inputs -> [inputs] -> [inputs, [inputs, inputs]]
+        xnn.Pack(), xnn.Group([0, [0, 0]]),
+        # [inputs, [inputs, inputs]] -> [inputs, noise]
         xnn.Parallel(
             # inputs -> inputs
             xnn.Identity(),
-            # inputs -> noise
-            xnn.Sequential(xnn.NormalLike(), xnn.MulConst(sigma))),
+            # [inputs, inputs] -> noise
+            xnn.Sequential(
+                # [inputs, inputs] -> [noise, scale]
+                xnn.Parallel(
+                    xnn.NormalLike(),
+                    xnn.Sequential(xnn.Exponential(), xnn.MulConst(beta))),
+                # [noise, scale] -> noise
+                xnn.Multiply())),
         # [inputs, noise] -> inputs + noise
         xnn.Add())
 
 
-def Random():
+def FeatureRandom():
     """Random number generator."""
     return xnn.NormalLike()
 

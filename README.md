@@ -1,2 +1,2 @@
 # babble
-GAN for Text
+Non-Autoregressive text generation.

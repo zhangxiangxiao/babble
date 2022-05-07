@@ -1,7 +1,8 @@
 """Unit tests for module."""
 
 from module import Residual, ResLinear, ResConv, ResDeconv
-from module import Encoder, Decoder, Discriminator, Injector, Random
+from module import Encoder, Decoder, Discriminator
+from module import FeatureInjector, FeatureRandom
 from module import AELoss, GenLoss, DiscLoss
 
 from absl.testing import absltest
@@ -153,9 +154,9 @@ class DiscriminatorTest(absltest.TestCase):
         self.assertEqual((2, 2, 8), outputs[3].shape)
 
 
-class InjectorTest(absltest.TestCase):
+class FeatureInjectorTest(absltest.TestCase):
     def setUp(self):
-        self.module = Injector(1e-1)
+        self.module = FeatureInjector(1e-1)
 
     def test_forward(self):
         forward, params, states = self.module
@@ -170,9 +171,9 @@ class InjectorTest(absltest.TestCase):
         self.assertEqual(inputs.shape, outputs.shape)
 
 
-class RandomTest(absltest.TestCase):
+class FeatureRandomTest(absltest.TestCase):
     def setUp(self):
-        self.module = Random()
+        self.module = FeatureRandom()
 
     def test_forward(self):
         forward, params, states = self.module
