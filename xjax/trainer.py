@@ -1,13 +1,25 @@
 """Training logic for babble"""
 import os
 import time
+import unicodedata
 
 from absl import logging
 import jax.numpy as jnp
+import numpy as np
 from xjax import xdl
 
+
+def replace_unicode_char(char):
+    if (unicodedata.category(char)[0] == 'C' or
+        unicodedata.category(char)[0] == 'Z'):
+        return ' '
+    return char
+
 def array_to_string(inputs):
-    return ''
+    return ''.join(replace_unicode_char(
+        char) for char in np.array(inputs).astype('uint8').tobytes().decode(
+            'utf-8', 'replace')).rstrip()
+
 
 def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
             interval, checkpoint):
@@ -41,10 +53,14 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
             jnp.mean(total_loss_outputs[2]), jnp.mean(eval_outputs[0]),
             jnp.mean(total_eval_outputs[0]), jnp.mean(eval_outputs[1]),
             jnp.mean(total_eval_outputs[1]))
-        logging.info('   inputs = %s', array_to_string(inputs[0]))
-        logging.info('  targets = %s', array_to_string(net_outputs[0]))
-        logging.info('  decoded = %s', array_to_string(net_outputs[1]))
-        logging.info('generated = %s', array_to_string(net_outputs[2]))
+        logging.info('   inputs = %s', array_to_string(jnp.argmax(
+            inputs[0][0], axis=0)))
+        logging.info('  targets = %s', array_to_string(jnp.argmax(
+            net_outputs[0][0], axis=0)))
+        logging.info('  decoded = %s', array_to_string(jnp.argmax(
+            net_outputs[1][0], axis=0)))
+        logging.info('generated = %s', array_to_string(jnp.argmax(
+            net_outputs[2][0], axis=0)))
     train_callback_time = time.time()
     def train_callback(*args):
         nonlocal train_callback_time

@@ -30,13 +30,15 @@ class TrainerTest(absltest.TestCase):
         ae_loss = AELoss(1)
         gen_loss = GenLoss(0.1)
         disc_loss = DiscLoss(1)
-        model = xmod.vmap(ATNNFAE(encoder, decoder, discriminator, injector,
-                                  random, ae_loss, gen_loss, disc_loss), 4)
+        model = xmod.jit(xmod.vmap(ATNNFAE(
+            encoder, decoder, discriminator, injector, random, ae_loss,
+            gen_loss, disc_loss), 4))
         enc_opt = Momentum(encoder.params, 0.01, 0.9, 0.00001)
         dec_opt = Momentum(decoder.params, 0.01, 0.9, 0.00001)
         disc_opt = Momentum(discriminator.params, 0.01, 0.9, 0.1)
-        optimizer = xopt.vmap(xopt.Container(enc_opt, dec_opt, disc_opt))
-        evaluator = xeval.vmap(Evaluator(), 4)
+        optimizer = xopt.jit(xopt.vmap(xopt.Container(
+            enc_opt, dec_opt, disc_opt)))
+        evaluator = xeval.jit(xeval.vmap(Evaluator(), 4))
         learner = Learner(optimizer, model, None, evaluator)
         self.run = Trainer(learner, data_train, data_valid, 10, 2, 2, 0,
                            'checkpoint/unittest')
