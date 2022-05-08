@@ -1,13 +1,26 @@
 """Adversarially trained normalized Noisy-Feature Auto-Encoder Model"""
 
+import math
+
 import module
+import jax
 import jax.nn.initializers as jinit
+import jax.numpy as jnp
 from xjax import xnn
 from xjax.xmod import ModelTuple
 from xjax.xmod import vjp, vjp_full, vjp_inputs, map_ones_like, map_add
 
+BYTE_MAX = math.log(256)
+LOGCOSH_MAX = math.log(math.cosh(1))
 
-def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
+
+def map_full_like(tree, value):
+    return jax.tree_map(lambda x: jnp.full_like(x, value), tree)
+
+
+def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss,
+            ae_max=BYTE_MAX, gen_max=LOGCOSH_MAX, disc_max=LOGCOSH_MAX,
+            ratio_min=0.1):
     """Adversarially-Trained Normalized Noisy-Feature Auto-Encoder.
 
     Args:
@@ -106,18 +119,27 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         states = [enc_states, dec_states, disc_states, inj_states, rnd_states,
                   ae_loss_states, gen_loss_states, disc_loss_states]
         # Backward propagate to autoencoder.
-        grads_ae_loss_outputs = map_ones_like(ae_loss_outputs)
+        ae_ratio = (1 - ratio_min) * (1 - jnp.maximum(
+            ae_max, jnp.mean(ae_loss_outputs)) / ae_max) + ratio_min
+        gen_ratio = (1 - ratio_min) * (1 - jnp.maximum(
+            gen_max, jnp.mean(gen_loss_outputs)) / gen_max) + ratio_min
+        disc_ratio = (1 - ratio_min) * (1 - jnp.maximum(
+            disc_max, jnp.mean(disc_loss_outputs)) / disc_max) + ratio_min
+        grads_ae_loss_outputs = map_full_like(
+            ae_loss_outputs, gen_ratio * disc_ratio)
         grads_dec_outputs, _, _ = ae_loss_vjpf(grads_ae_loss_outputs)
         grads_dec_params_ae, grads_inj_outputs = dec_vjpf(grads_dec_outputs)
         grads_enc_outputs = inj_vjpf(grads_inj_outputs)
         grads_enc_params = enc_vjpf(grads_enc_outputs)
         # Backward propagate to generator.
-        grads_gen_loss_outputs = map_ones_like(gen_loss_outputs)
+        grads_gen_loss_outputs = map_full_like(
+            gen_loss_outputs, ae_ratio * disc_ratio)
         grads_fake_outputs_gen = gen_loss_vjpf(grads_gen_loss_outputs)
         _, grads_gen_outputs = disc_vjpf_fake(grads_fake_outputs_gen)
         grads_dec_params_gen = gen_vjpf(grads_gen_outputs)
         # Backward propagate to discriminator
-        grads_disc_loss_outputs = map_ones_like(disc_loss_outputs)
+        grads_disc_loss_outputs = map_full_like(
+            disc_loss_outputs, ae_ratio * gen_ratio)
         grads_real_outputs, grads_fake_outputs_disc = (
             disc_loss_vjpf(grads_disc_loss_outputs))
         grads_disc_params_real = disc_vjpf_real(grads_real_outputs)
