@@ -204,7 +204,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     return xnn.Sequential(dense, shared)
 
 
-def FeatureInjector(beta=0.1):
+def FeatureInjector(beta=1):
     """Noise injector."""
     return xnn.Sequential(
         # inputs -> [inputs] -> [inputs, [inputs, inputs]]
