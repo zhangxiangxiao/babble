@@ -63,7 +63,7 @@ flags.DEFINE_float('inj_beta', 1, 'Injector noise random level.')
 
 flags.DEFINE_float('ae_loss_weight', 1, 'Autoencoder loss weight.')
 
-flags.DEFINE_float('gen_loss_weight', 0.1, 'Generator loss weight.')
+flags.DEFINE_float('gen_loss_weight', 1, 'Generator loss weight.')
 
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
@@ -73,7 +73,7 @@ flags.DEFINE_float('ae_opt_decay', 0.00001, 'Autoencoder weight decay.')
 
 flags.DEFINE_float('disc_opt_rate', 0.01, 'Discriminator learning rate.')
 flags.DEFINE_float('disc_opt_coeff', 0.9, 'Discriminator momentum coefficient.')
-flags.DEFINE_float('disc_opt_decay', 0.1, 'Discriminator weight decay.')
+flags.DEFINE_float('disc_opt_decay', 0.00001, 'Discriminator weight decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
 # sample data. This definition is suitable if the dataset is too large and
@@ -143,7 +143,7 @@ def main(unused_argv):
             FLAGS.disc_feature, FLAGS.disc_output, '-'.join(FLAGS.disc_kernel),
             '-'.join(FLAGS.disc_pool), FLAGS.disc_sigma)
         + '_feat-{}'.format(FLAGS.inj_beta)
-        + '_feat_sigmax-{}'.format(FLAGS.ae_loss_weight)
+        + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
         + '_logcosh-{}'.format(FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(

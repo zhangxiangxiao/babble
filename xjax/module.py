@@ -153,8 +153,8 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     """Discriminator that is dense."""
     layers = []
     layers.append(xnn.Sequential(
-        # inputs -> inputs, as softmax on log-sigmoid.
-        xnn.MulConst(-1), xnn.LogSigmoid(), xnn.Softmax(),
+        # inputs -> inputs, as softmax on softplus.
+        xnn.Softplus(), xnn.Softmax(axis=0),
         # inputs, shape=(i, l) -> inputs, shape=(l, i)
         xnn.Transpose(),
         # inputs -> features
@@ -231,7 +231,7 @@ def FeatureRandom():
 
 
 def AELoss(weight=1):
-    """Auto-Encoder loss. The loss is log-softmax on log-sigmoid, defined as
+    """Auto-Encoder loss. The loss is log-softmax on softplus, defined as
     Prob(i) = (1 + exp(y_i)) / sum_j(1 + exp(y_j))
     """
     # [outputs, targets, weights] -> loss
@@ -239,8 +239,7 @@ def AELoss(weight=1):
         # [outputs, targets, weights] -> [neglogsoftmax, targets, weights]
         xnn.Parallel(
             xnn.Sequential(
-                xnn.MulConst(-1), xnn.LogSigmoid(), xnn.LogSoftmax(axis=0),
-                xnn.MulConst(-1)),
+                xnn.Softplus(), xnn.LogSoftmax(axis=0), xnn.MulConst(-1)),
             xnn.Identity(), xnn.Identity()),
         # [neglogsoftmax, targets, weights] -> [loss, weights]
         xnn.Group([[0, 1], 2]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
