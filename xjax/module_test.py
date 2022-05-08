@@ -103,13 +103,13 @@ class EncoderTest(absltest.TestCase):
         forward, params, states = self.module
         inputs = jrand.normal(xrand.split(), (4, 16))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual((2, 8), outputs.shape)
+        self.assertEqual((2, 4), outputs.shape)
 
     def test_vmap(self):
         forward, params, states = xnn.vmap(self.module, 2)
         inputs = jrand.normal(xrand.split(), (2, 4, 16))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual((2, 2, 8), outputs.shape)
+        self.assertEqual((2, 2, 4), outputs.shape)
 
 
 class DecoderTest(absltest.TestCase):
@@ -120,13 +120,13 @@ class DecoderTest(absltest.TestCase):
         forward, params, states = self.module
         inputs = jrand.normal(xrand.split(), (4, 4))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual((2, 8), outputs.shape)
+        self.assertEqual((2, 16), outputs.shape)
 
     def test_vmap(self):
         forward, params, states = xnn.vmap(self.module, 2)
         inputs = jrand.normal(xrand.split(), (2, 4, 4))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual((2, 2, 8), outputs.shape)
+        self.assertEqual((2, 2, 16), outputs.shape)
 
 
 class DiscriminatorTest(absltest.TestCase):
@@ -137,21 +137,25 @@ class DiscriminatorTest(absltest.TestCase):
         forward, params, states = self.module
         inputs = jrand.normal(xrand.split(), (4, 16))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual(4, len(outputs))
+        self.assertEqual(6, len(outputs))
         self.assertEqual((2, 16), outputs[0].shape)
         self.assertEqual((2, 16), outputs[1].shape)
         self.assertEqual((2, 8), outputs[2].shape)
         self.assertEqual((2, 8), outputs[3].shape)
+        self.assertEqual((2, 4), outputs[4].shape)
+        self.assertEqual((2, 4), outputs[5].shape)
 
     def test_vmap(self):
         forward, params, states = xnn.vmap(self.module, 2)
         inputs = jrand.normal(xrand.split(), (2, 4, 16))
         outputs, states = forward(params, inputs, states)
-        self.assertEqual(4, len(outputs))
+        self.assertEqual(6, len(outputs))
         self.assertEqual((2, 2, 16), outputs[0].shape)
         self.assertEqual((2, 2, 16), outputs[1].shape)
         self.assertEqual((2, 2, 8), outputs[2].shape)
         self.assertEqual((2, 2, 8), outputs[3].shape)
+        self.assertEqual((2, 2, 4), outputs[4].shape)
+        self.assertEqual((2, 2, 4), outputs[5].shape)
 
 
 class FeatureInjectorTest(absltest.TestCase):

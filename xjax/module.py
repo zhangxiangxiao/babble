@@ -79,7 +79,7 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
     # features -> features.
-    for _ in range(level - 1):
+    for _ in range(level):
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.MaxPool(pool))
         for _ in range(depth):
@@ -123,7 +123,7 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
     # features -> features
-    for _ in range(level - 1):
+    for _ in range(level):
         # features, shape=(f, l) -> features, shape=(f, l*2)
         layers.append(transfer())
         layers.append(ResDeconv(
@@ -174,7 +174,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
                     transfer=transfer, w_init=jinit.normal(sigma),
                     b_init=jinit.normal(sigma))))
     # features -> features.
-    for _ in range(level - 1):
+    for _ in range(level):
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.Sequential(
             xnn.MaxPool(pool),
