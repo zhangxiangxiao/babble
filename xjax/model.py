@@ -16,7 +16,7 @@ def map_full_like(tree, value):
 
 
 def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss, ae_beta=1,
-            gen_beta=16, disc_beta=1):
+            gen_beta=20, disc_beta=1):
     """Adversarially-Trained Normalized Noisy-Feature Auto-Encoder.
 
     Args:
