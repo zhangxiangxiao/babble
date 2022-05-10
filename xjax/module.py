@@ -291,6 +291,6 @@ def DiscLossSigmoid(weight=1):
             xnn.Sequential(xnn.Parallel(
                 xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
             # fake -> fake_loss
-            xnn.SoftPlus()),
+            xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
