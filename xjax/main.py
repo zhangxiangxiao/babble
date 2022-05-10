@@ -12,7 +12,7 @@ from xjax import xmod
 from data import Data
 from module import Encoder, Decoder, Discriminator
 from module import FeatureInjector, FeatureRandom
-from module import AELoss, GenLoss, DiscLoss
+from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
 from model import ATNNFAE
 from optimizer import Momentum
 from evaluator import Evaluator
