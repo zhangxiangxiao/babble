@@ -95,7 +95,7 @@ class ATNNFAETest(absltest.TestCase):
         forward, _, params, states = self.model
         inputs = self.inputs
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        (tar_outputs, dec_outputs, gen_outputs, real_outputs, nois_outputs,
+        (tar_outputs, dec_outputs, gen_outputs, real_outputs,
          fake_outputs) = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         enc_forward, enc_params, enc_states = self.enc
@@ -120,9 +120,6 @@ class ATNNFAETest(absltest.TestCase):
         ref_real_outputs, disc_states = disc_forward(
             disc_params, tar_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_real_outputs, real_outputs))
-        ref_nois_outputs, disc_states = disc_forward(
-            disc_params, dec_outputs, disc_states)
-        self.assertTrue(jnp.allclose(ref_nois_outputs, nois_outputs))
         ref_fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_fake_outputs, fake_outputs))
@@ -131,12 +128,8 @@ class ATNNFAETest(absltest.TestCase):
             ae_loss_params, [dec_outputs, inputs[0], inputs[1]], ae_loss_states)
         self.assertTrue(jnp.allclose(ref_ae_loss_outputs, ae_loss_outputs))
         gen_loss_forward, gen_loss_params, gen_loss_states = self.gen_loss
-        ref_gen_loss_outputs_nois, gen_loss_states = gen_loss_forward(
-            gen_loss_params, nois_outputs, ae_loss_states)
-        ref_gen_loss_outputs_fake, gen_loss_states = gen_loss_forward(
+        ref_gen_loss_outputs, gen_loss_states = gen_loss_forward(
             gen_loss_params, fake_outputs, ae_loss_states)
-        ref_gen_loss_outputs = (
-            ref_gen_loss_outputs_nois + ref_gen_loss_outputs_fake) / 2
         self.assertTrue(jnp.allclose(ref_gen_loss_outputs, gen_loss_outputs))
         disc_loss_forward, disc_loss_params, disc_loss_states = self.disc_loss
         ref_disc_loss_outputs, disc_loss_states = disc_loss_forward(
@@ -180,14 +173,13 @@ class ATNNFAETest(absltest.TestCase):
         inputs = [jrand.normal(xrand.split(), (2, 8)),
                   jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        [tar_outputs, dec_outputs, gen_outputs, real_outputs, nois_outputs,
+        [tar_outputs, dec_outputs, gen_outputs, real_outputs,
          fake_outputs] = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         self.assertEqual((2, 8), tar_outputs.shape)
         self.assertEqual((2, 8), dec_outputs.shape)
         self.assertEqual((2, 8), gen_outputs.shape)
         self.assertEqual((2,), real_outputs.shape)
-        self.assertEqual((2,), nois_outputs.shape)
         self.assertEqual((2,), fake_outputs.shape)
         self.assertEqual((2,), ae_loss_outputs.shape)
         self.assertEqual((2,), gen_loss_outputs.shape)
@@ -281,7 +273,7 @@ class ATNIAETest(absltest.TestCase):
         forward, _, params, states = self.model
         inputs = self.inputs
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        (tar_outputs, dec_outputs, gen_outputs, real_outputs, nois_outputs,
+        (tar_outputs, dec_outputs, gen_outputs, real_outputs,
          fake_outputs) = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         net_forward, net_params, net_states = self.net
@@ -304,9 +296,6 @@ class ATNIAETest(absltest.TestCase):
         ref_real_outputs, disc_states = disc_forward(
             disc_params, tar_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_real_outputs, real_outputs))
-        ref_nois_outputs, disc_states = disc_forward(
-            disc_params, dec_outputs, disc_states)
-        self.assertTrue(jnp.allclose(ref_nois_outputs, nois_outputs))
         ref_fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_fake_outputs, fake_outputs))
@@ -315,12 +304,8 @@ class ATNIAETest(absltest.TestCase):
             ae_loss_params, [dec_outputs, inputs[0], inputs[1]], ae_loss_states)
         self.assertTrue(jnp.allclose(ref_ae_loss_outputs, ae_loss_outputs))
         gen_loss_forward, gen_loss_params, gen_loss_states = self.gen_loss
-        ref_gen_loss_outputs_nois, gen_loss_states = gen_loss_forward(
-            gen_loss_params, nois_outputs, ae_loss_states)
-        ref_gen_loss_outputs_fake, gen_loss_states = gen_loss_forward(
+        ref_gen_loss_outputs, gen_loss_states = gen_loss_forward(
             gen_loss_params, fake_outputs, ae_loss_states)
-        ref_gen_loss_outputs = (
-            ref_gen_loss_outputs_nois + ref_gen_loss_outputs_fake) / 2
         self.assertTrue(jnp.allclose(ref_gen_loss_outputs, gen_loss_outputs))
         disc_loss_forward, disc_loss_params, disc_loss_states = self.disc_loss
         ref_disc_loss_outputs, disc_loss_states = disc_loss_forward(
@@ -357,14 +342,13 @@ class ATNIAETest(absltest.TestCase):
         inputs = [jrand.normal(xrand.split(), (2, 8)),
                   jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        [tar_outputs, dec_outputs, gen_outputs, real_outputs, nois_outputs,
+        [tar_outputs, dec_outputs, gen_outputs, real_outputs,
          fake_outputs] = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         self.assertEqual((2, 8), tar_outputs.shape)
         self.assertEqual((2, 8), dec_outputs.shape)
         self.assertEqual((2, 8), gen_outputs.shape)
         self.assertEqual((2,), real_outputs.shape)
-        self.assertEqual((2,), nois_outputs.shape)
         self.assertEqual((2,), fake_outputs.shape)
         self.assertEqual((2,), ae_loss_outputs.shape)
         self.assertEqual((2,), gen_loss_outputs.shape)
