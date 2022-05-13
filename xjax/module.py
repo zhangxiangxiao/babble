@@ -278,18 +278,3 @@ def DiscLoss(weight=1):
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
-
-def DiscLossSigmoid(weight=1):
-    """Discriminator loss. LogCosh for real, logSigmoid for fake."""
-    return xnn.Sequential(
-        # [real, fake] -> [[real, real], fake]
-        xnn.Group([[0, 0], 1]),
-        # [[real, real], fake] -> [real_loss, fake_loss]
-        xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            xnn.Sequential(xnn.Parallel(
-                xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
-            # fake -> fake_loss
-            xnn.Softplus()),
-        # [real_loss, fake_loss] -> real_loss + fake_loss
-        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
