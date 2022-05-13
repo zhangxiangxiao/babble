@@ -12,7 +12,7 @@ from xjax import xmod
 from data import Data
 from module import Encoder, Decoder, Discriminator
 from module import FeatureInjector, FeatureRandom
-from module import AELoss, GenLoss, DiscLoss
+from module import AELoss, GenLoss, DiscLossSigmoid
 from model import ATNNFAE
 from optimizer import Momentum
 from evaluator import Evaluator
@@ -115,7 +115,7 @@ def main(unused_argv):
     random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
     gen_loss = GenLoss(FLAGS.gen_loss_weight)
-    disc_loss = DiscLoss(FLAGS.disc_loss_weight)
+    disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
     model = xmod.jit(xmod.vmap(ATNNFAE(
         encoder, decoder, discriminator, injector, random, ae_loss, gen_loss,
         disc_loss), FLAGS.data_batch))
