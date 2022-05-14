@@ -4,10 +4,10 @@ import jax.nn.initializers as jinit
 import jax.random as jrand
 from xjax import xnn
 from xjax.xnn import tree_forward, ModuleTuple
-from xjax.xnn import Linear, Conv, Deconv, ResizeLike, ReLU
+from xjax.xnn import Linear, Conv, Deconv, ResizeLike, Tanh
 
 
-def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
+def Residual(module1, module2, transfer=Tanh, resize=ResizeLike):
     """Residually connected layer with resizing."""
     # inputs -> res_out
     return xnn.Sequential(
@@ -23,7 +23,7 @@ def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
         resize(), xnn.Add())
 
 
-def ResLinear(in_dim, feat_dim, out_dim, transfer=ReLU, resize=ResizeLike,
+def ResLinear(in_dim, feat_dim, out_dim, transfer=Tanh, resize=ResizeLike,
               w_init=jinit.normal(1e-6), b_init=jinit.normal(1e-6), rng=None):
     """Residually connected linear layer."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -35,7 +35,7 @@ def ResLinear(in_dim, feat_dim, out_dim, transfer=ReLU, resize=ResizeLike,
 def ResConv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
             first_stride=None, second_stride=None, first_dilation=None,
             second_dilation=None, first_padding='SAME', second_padding='SAME',
-            transfer=ReLU, resize=ResizeLike, w_init=jinit.normal(1e-6),
+            transfer=Tanh, resize=ResizeLike, w_init=jinit.normal(1e-6),
             b_init=jinit.normal(1e-6), rng=None):
     """Residually connected convolution."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -49,7 +49,7 @@ def ResConv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
 def ResDeconv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
               first_stride=None, second_stride=None, first_dilation=None,
               second_dilation=None, first_padding='SAME', second_padding='SAME',
-              transfer=ReLU, resize=ResizeLike, w_init=jinit.normal(1e-6),
+              transfer=Tanh, resize=ResizeLike, w_init=jinit.normal(1e-6),
               b_init=jinit.normal(1e-6), rng=None):
     """Residually connected deconvolution."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -61,7 +61,7 @@ def ResDeconv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
 
 
 def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
-            sigma=1e-6, transfer=xnn.ReLU):
+            sigma=1e-6, transfer=Tanh):
     """Encoder."""
     layers = []
     # inputs, shape=(i, l) -> inputs, shape=(l, i)
@@ -103,7 +103,7 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
 
 
 def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
-            sigma=1e-6, transfer=xnn.ReLU):
+            sigma=1e-6, transfer=Tanh):
     """Decoder."""
     layers = []
     # inputs -> inputs
@@ -149,7 +149,7 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
 
 
 def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
-                  pool=(2,), sigma=1e-6, transfer=xnn.ReLU):
+                  pool=(2,), sigma=1e-6, transfer=Tanh):
     """Discriminator that is dense."""
     layers = []
     layers.append(xnn.Sequential(
