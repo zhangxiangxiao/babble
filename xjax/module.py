@@ -204,23 +204,17 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     return xnn.Sequential(dense, shared)
 
 
-def FeatureInjector(beta=1):
+def FeatureInjector(beta=0.1):
     """Noise injector."""
     return xnn.Sequential(
-        # inputs -> [inputs] -> [inputs, [inputs, inputs]]
-        xnn.Pack(), xnn.Group([0, [0, 0]]),
-        # [inputs, [inputs, inputs]] -> [inputs, noise]
+        # inputs -> [inputs] -> [inputs, inputs]
+        xnn.Pack(), xnn.Group([0, 0]),
+        # [inputs, inputs] -> [inputs, noise]
         xnn.Parallel(
             # inputs -> inputs
             xnn.Identity(),
-            # [inputs, inputs] -> noise
-            xnn.Sequential(
-                # [inputs, inputs] -> [noise, scale]
-                xnn.Parallel(
-                    xnn.NormalLike(),
-                    xnn.Sequential(xnn.Exponential(), xnn.MulConst(beta))),
-                # [noise, scale] -> noise
-                xnn.Multiply())),
+            # inputs -> noise
+            xnn.Sequential(xnn.NormalLike(), xnn.MulConst(beta))),
         # [inputs, noise] -> inputs + noise
         xnn.Add())
 
@@ -251,15 +245,20 @@ def AELoss(weight=1):
 
 def GenLoss(weight=1):
     """Generator loss. LogCosh with zero."""
-    # outputs, pytree -> loss, scalar
+    # [real, fake] -> loss
     return xnn.Sequential(
-        # outputs -> [outputs] -> [outputs, outputs]
-        xnn.Pack(), xnn.Group([0, 0]),
-        # [outputs, outputs] -> [outputs, zeros]
-        xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
-        # [outputs, zeros] -> loss
-        xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
-        xnn.MulConst(weight))
+        # [real, fake] -> [[real, real], [fake, fake]]
+        xnn.Group([[0, 0], [1, 1]]),
+        # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
+        xnn.Parallel(
+            # [real, real] -> [real, zeros] -> real_loss
+            xnn.Sequential(
+                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
+            # [fake, fake] -> [fake, -ones] -> fake_loss
+            xnn.Sequential(
+                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh())),
+        # [real_loss, fake_loss] -> real_loss + fake_loss
+        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
