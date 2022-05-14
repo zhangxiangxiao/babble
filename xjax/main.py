@@ -83,8 +83,10 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 100, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/sigmoid',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
                     'Checkpoint location.')
+flags.DEFINE_enum('main_disc_loss', 'sigmoid', ['logcosh', 'sigmoid'],
+                  'The type of discriminator loss.')
 
 
 def main(unused_argv):
@@ -115,7 +117,10 @@ def main(unused_argv):
     random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
     gen_loss = GenLoss(FLAGS.gen_loss_weight)
-    disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
+    if FLAGS.main_disc_loss == 'sigmoid':
+        disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
+    elif FLAGS.main_disc_loss == 'logcosh':
+        disc_loss = DiscLoss(FLAGS.disc_loss_weight)
     model = xmod.jit(xmod.vmap(ATNNFAE(
         encoder, decoder, discriminator, injector, random, ae_loss, gen_loss,
         disc_loss), FLAGS.data_batch))
@@ -145,7 +150,7 @@ def main(unused_argv):
         + '_feat-{}'.format(FLAGS.inj_beta)
         + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
-        + '_sigmoid-{}'.format(FLAGS.disc_loss_weight)
+        + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(
             FLAGS.ae_opt_rate, FLAGS.ae_opt_coeff, FLAGS.ae_opt_decay)
         + '_mom-{}-{}-{}'.format(
