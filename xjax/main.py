@@ -12,7 +12,7 @@ from xjax import xmod
 from data import Data
 from module import Encoder, Decoder, Discriminator
 from module import FeatureInjector, FeatureRandom
-from module import AELoss, GenLoss, DiscLoss
+from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
 from model import ATNNFAE
 from optimizer import Momentum
 from evaluator import Evaluator
@@ -68,11 +68,11 @@ flags.DEFINE_float('gen_loss_weight', 1, 'Generator loss weight.')
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
 flags.DEFINE_float('ae_opt_rate', 0.01, 'Autoencoder learning rate.')
-flags.DEFINE_float('ae_opt_coeff', 0.9, 'Autoencoder momentum coefficient.')
+flags.DEFINE_float('ae_opt_coeff', 0, 'Autoencoder momentum coefficient.')
 flags.DEFINE_float('ae_opt_decay', 0.00001, 'Autoencoder weight decay.')
 
 flags.DEFINE_float('disc_opt_rate', 0.01, 'Discriminator learning rate.')
-flags.DEFINE_float('disc_opt_coeff', 0.9, 'Discriminator momentum coefficient.')
+flags.DEFINE_float('disc_opt_coeff', 0, 'Discriminator momentum coefficient.')
 flags.DEFINE_float('disc_opt_decay', 0.00001, 'Discriminator weight decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
@@ -80,11 +80,13 @@ flags.DEFINE_float('disc_opt_decay', 0.00001, 'Discriminator weight decay.')
 # iterating over all of it is infeasible.
 flags.DEFINE_integer('trainer_train_steps', 100000, 'Train steps per epoch.')
 flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
-flags.DEFINE_integer('trainer_epochs', 100, 'Number of epoches to run.')
+flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
 flags.DEFINE_string('main_checkpoint', 'checkpoint/transfer',
                     'Checkpoint location.')
+flags.DEFINE_enum('main_disc_loss', 'sigmoid', ['logcosh', 'sigmoid'],
+                  'The type of discriminator loss.')
 
 
 def main(unused_argv):
@@ -115,7 +117,10 @@ def main(unused_argv):
     random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
     gen_loss = GenLoss(FLAGS.gen_loss_weight)
-    disc_loss = DiscLoss(FLAGS.disc_loss_weight)
+    if FLAGS.main_disc_loss == 'sigmoid':
+        disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
+    elif FLAGS.main_disc_loss == 'logcosh':
+        disc_loss = DiscLoss(FLAGS.disc_loss_weight)
     model = xmod.jit(xmod.vmap(ATNNFAE(
         encoder, decoder, discriminator, injector, random, ae_loss, gen_loss,
         disc_loss), FLAGS.data_batch))
@@ -145,7 +150,7 @@ def main(unused_argv):
         + '_feat-{}'.format(FLAGS.inj_beta)
         + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
-        + '_logcosh-{}'.format(FLAGS.disc_loss_weight)
+        + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(
             FLAGS.ae_opt_rate, FLAGS.ae_opt_coeff, FLAGS.ae_opt_decay)
         + '_mom-{}-{}-{}'.format(
