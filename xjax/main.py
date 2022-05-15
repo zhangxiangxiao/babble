@@ -57,6 +57,7 @@ flags.DEFINE_integer('disc_feature', 256, 'Discriminator feature dimension.')
 flags.DEFINE_integer('disc_output', 256, 'Discriminator output dimension.')
 flags.DEFINE_list('disc_kernel', '3', 'Discriminator kernel size.')
 flags.DEFINE_list('disc_pool', '2', 'Discriminator pooling size.')
+flags.DEFINE_float('disc_dropout', '0.5', 'Discriminator dropout probability.')
 flags.DEFINE_float('disc_sigma', 0.000001, 'Discriminator initialization.')
 
 flags.DEFINE_float('inj_beta', 1, 'Injector noise random level.')
@@ -83,7 +84,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/dropout',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'sigmoid', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
@@ -112,7 +113,7 @@ def main(unused_argv):
     discriminator = Discriminator(
         FLAGS.disc_level, FLAGS.disc_depth, FLAGS.disc_input,
         FLAGS.disc_feature, FLAGS.disc_output, disc_kernel, disc_pool,
-        FLAGS.disc_sigma)
+        FLAGS.disc_dropout, FLAGS.disc_sigma)
     injector = FeatureInjector(FLAGS.inj_beta)
     random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
@@ -143,10 +144,10 @@ def main(unused_argv):
             FLAGS.dec_level, FLAGS.dec_depth, FLAGS.dec_input,
             FLAGS.dec_feature, FLAGS.dec_output, '-'.join(FLAGS.dec_kernel),
             '-'.join(FLAGS.dec_stride), FLAGS.dec_sigma)
-        + '_dense-{}-{}-{}-{}-{}-{}-{}-{}'.format(
+        + '_dense-{}-{}-{}-{}-{}-{}-{}-{}-{}'.format(
             FLAGS.disc_level, FLAGS.disc_depth, FLAGS.disc_input,
             FLAGS.disc_feature, FLAGS.disc_output, '-'.join(FLAGS.disc_kernel),
-            '-'.join(FLAGS.disc_pool), FLAGS.disc_sigma)
+            '-'.join(FLAGS.disc_pool), FLAGS.disc_dropout, FLAGS.disc_sigma)
         + '_feat-{}'.format(FLAGS.inj_beta)
         + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
