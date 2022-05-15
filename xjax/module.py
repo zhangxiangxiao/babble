@@ -149,7 +149,7 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
 
 
 def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
-                  pool=(2,), sigma=1e-6, transfer=Tanh):
+                  pool=(2,), dropout=0.5, sigma=1e-6, transfer=Tanh):
     """Discriminator that is dense."""
     layers = []
     layers.append(xnn.Sequential(
@@ -163,6 +163,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         # features, shape=(l, f) -> features, shape=(f, l)
         xnn.Transpose(),
         transfer(),
+        xnn.Dropout(dropout),
         ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
                 transfer=transfer, w_init=jinit.normal(sigma),
                 b_init=jinit.normal(sigma))))
@@ -197,6 +198,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         xnn.Transpose(),
         # features, shape=(l, f) -> outputs, shape=(l, o)
         transfer(),
+        xnn.Dropout(dropout),
         ResLinear(feat_dim, feat_dim, out_dim, transfer,
                   w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)),
         # outputs, shape=(l, o) -> outputs, shape=(o, l)

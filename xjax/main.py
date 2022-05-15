@@ -57,6 +57,7 @@ flags.DEFINE_integer('disc_feature', 256, 'Discriminator feature dimension.')
 flags.DEFINE_integer('disc_output', 256, 'Discriminator output dimension.')
 flags.DEFINE_list('disc_kernel', '3', 'Discriminator kernel size.')
 flags.DEFINE_list('disc_pool', '2', 'Discriminator pooling size.')
+flags.DEFINE_float('disc_dropout', 0.5, 'Discriminator dropout probability.')
 flags.DEFINE_float('disc_sigma', 0.000001, 'Discriminator initialization.')
 
 flags.DEFINE_float('inj_beta', 0.1, 'Injector noise random level.')
@@ -68,11 +69,11 @@ flags.DEFINE_float('gen_loss_weight', 1, 'Generator loss weight.')
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
 flags.DEFINE_float('ae_opt_rate', 0.01, 'Autoencoder learning rate.')
-flags.DEFINE_float('ae_opt_coeff', 0, 'Autoencoder momentum coefficient.')
+flags.DEFINE_float('ae_opt_coeff', 0.9, 'Autoencoder momentum coefficient.')
 flags.DEFINE_float('ae_opt_decay', 0.00001, 'Autoencoder weight decay.')
 
 flags.DEFINE_float('disc_opt_rate', 0.01, 'Discriminator learning rate.')
-flags.DEFINE_float('disc_opt_coeff', 0, 'Discriminator momentum coefficient.')
+flags.DEFINE_float('disc_opt_coeff', 0.9, 'Discriminator momentum coefficient.')
 flags.DEFINE_float('disc_opt_decay', 0.00001, 'Discriminator weight decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
@@ -112,7 +113,7 @@ def main(unused_argv):
     discriminator = Discriminator(
         FLAGS.disc_level, FLAGS.disc_depth, FLAGS.disc_input,
         FLAGS.disc_feature, FLAGS.disc_output, disc_kernel, disc_pool,
-        FLAGS.disc_sigma)
+        FLAGS.disc_dropout, FLAGS.disc_sigma)
     injector = FeatureInjector(FLAGS.inj_beta)
     random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
@@ -143,10 +144,10 @@ def main(unused_argv):
             FLAGS.dec_level, FLAGS.dec_depth, FLAGS.dec_input,
             FLAGS.dec_feature, FLAGS.dec_output, '-'.join(FLAGS.dec_kernel),
             '-'.join(FLAGS.dec_stride), FLAGS.dec_sigma)
-        + '_dense-{}-{}-{}-{}-{}-{}-{}-{}'.format(
+        + '_dense-{}-{}-{}-{}-{}-{}-{}-{}-{}'.format(
             FLAGS.disc_level, FLAGS.disc_depth, FLAGS.disc_input,
             FLAGS.disc_feature, FLAGS.disc_output, '-'.join(FLAGS.disc_kernel),
-            '-'.join(FLAGS.disc_pool), FLAGS.disc_sigma)
+            '-'.join(FLAGS.disc_pool), FLAGS.disc_dropout, FLAGS.disc_sigma)
         + '_feat-{}'.format(FLAGS.inj_beta)
         + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
