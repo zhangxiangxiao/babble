@@ -86,7 +86,7 @@ flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
 flags.DEFINE_string('main_checkpoint', 'checkpoint/normal',
                     'Checkpoint location.')
-flags.DEFINE_enum('main_disc_loss', 'sigmoid', ['logcosh', 'sigmoid'],
+flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
 
 
