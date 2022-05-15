@@ -246,21 +246,10 @@ def AELoss(weight=1):
 
 
 def GenLoss(weight=1):
-    """Generator loss. LogCosh with zero."""
+    """Generator loss. LogCosh between real and fake."""
     # [real, fake] -> loss
-    return xnn.Sequential(
-        # [real, fake] -> [[real, real], [fake, fake]]
-        xnn.Group([[0, 0], [1, 1]]),
-        # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
-        xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
-            # [fake, fake] -> [fake, -ones] -> fake_loss
-            xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh())),
-        # [real_loss, fake_loss] -> real_loss + fake_loss
-        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
+    return xnn.Sequential(xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
+                          xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
@@ -271,9 +260,9 @@ def DiscLoss(weight=1):
         xnn.Group([[0, 0], [1, 1]]),
         # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
+            # [real, real] -> [real, ones] -> real_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
+                xnn.Parallel(xnn.Identity(), xnn.OnesLike()), xnn.LogCosh()),
             # [fake, fake] -> [fake, -ones] -> fake_loss
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.LogCosh())),
@@ -284,13 +273,10 @@ def DiscLoss(weight=1):
 def DiscLossSigmoid(weight=1):
     """Discriminator loss. LogCosh for real, logSigmoid for fake."""
     return xnn.Sequential(
-        # [real, fake] -> [[real, real], fake]
-        xnn.Group([[0, 0], 1]),
-        # [[real, real], fake] -> [real_loss, fake_loss]
+        # [[eal, fake] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            xnn.Sequential(xnn.Parallel(
-                xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
+            # real -> real_loss
+            xnn.Sequential(xnn.MulConst(-1), xnn.Softplus()),
             # fake -> fake_loss
             xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
