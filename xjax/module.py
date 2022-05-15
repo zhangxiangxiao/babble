@@ -252,16 +252,10 @@ def AELoss(weight=1):
 
 
 def GenLoss(weight=1):
-    """Generator loss. LogCosh with zero."""
-    # outputs, pytree -> loss, scalar
-    return xnn.Sequential(
-        # outputs -> [outputs] -> [outputs, outputs]
-        xnn.Pack(), xnn.Group([0, 0]),
-        # [outputs, outputs] -> [outputs, zeros]
-        xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
-        # [outputs, zeros] -> loss
-        xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
-        xnn.MulConst(weight))
+    """Generator loss. LogCosh between real and fake."""
+    # [real, fake] -> loss
+    return xnn.Sequential(xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
+                          xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
