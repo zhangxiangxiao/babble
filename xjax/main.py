@@ -57,7 +57,7 @@ flags.DEFINE_integer('disc_feature', 256, 'Discriminator feature dimension.')
 flags.DEFINE_integer('disc_output', 256, 'Discriminator output dimension.')
 flags.DEFINE_list('disc_kernel', '3', 'Discriminator kernel size.')
 flags.DEFINE_list('disc_pool', '2', 'Discriminator pooling size.')
-flags.DEFINE_float('disc_dropout', '0.5', 'Discriminator dropout probability.')
+flags.DEFINE_float('disc_dropout', 0.5, 'Discriminator dropout probability.')
 flags.DEFINE_float('disc_sigma', 0.000001, 'Discriminator initialization.')
 
 flags.DEFINE_float('inj_beta', 1, 'Injector noise random level.')
@@ -84,7 +84,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/dropout',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'sigmoid', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
