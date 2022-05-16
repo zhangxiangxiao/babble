@@ -91,6 +91,8 @@ flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
+flags.DEFINE_enum('main_model', 'atnnfae', ['atnnfae', 'atniae'],
+                  'The type of model.')
 
 
 def get_transfer(name):
@@ -125,30 +127,38 @@ def main(unused_argv):
         FLAGS.disc_level, FLAGS.disc_depth, FLAGS.disc_input,
         FLAGS.disc_feature, FLAGS.disc_output, disc_kernel, disc_pool,
         FLAGS.disc_dropout, FLAGS.disc_sigma, get_transfer(FLAGS.disc_transfer))
-    injector = FeatureInjector(FLAGS.inj_beta)
-    random = FeatureRandom()
     ae_loss = AELoss(FLAGS.ae_loss_weight)
     gen_loss = GenLoss(FLAGS.gen_loss_weight)
     if FLAGS.main_disc_loss == 'sigmoid':
         disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
     elif FLAGS.main_disc_loss == 'logcosh':
         disc_loss = DiscLoss(FLAGS.disc_loss_weight)
-    model = xmod.jit(xmod.vmap(ATNNFAE(
-        encoder, decoder, discriminator, injector, random, ae_loss, gen_loss,
-        disc_loss), FLAGS.data_batch))
-    enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
-                       FLAGS.opt_decay)
-    dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
-                       FLAGS.opt_decay)
-    disc_opt = Momentum(discriminator.params, FLAGS.opt_rate, FLAGS.opt_coeff,
-                        FLAGS.opt_decay)
+    if FLAGS.main_model == 'atnnfae':
+        injector = FeatureInjector(FLAGS.inj_beta)
+        random = FeatureRandom()
+        model = xmod.jit(xmod.vmap(ATNNFAE(
+            encoder, decoder, discriminator, injector, random, ae_loss,
+            gen_loss, disc_loss), FLAGS.data_batch))
+        enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
+                           FLAGS.opt_decay)
+        dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
+                           FLAGS.opt_decay)
+        disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
+                            FLAGS.opt_coeff, FLAGS.opt_decay)
+    elif FLAGS.main_model == 'atniae':
+        injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
+        random = InputRandom(FLAGS.enc_input)
+        autoencoder = xnn.Sequential(encoder, decoder)
+        model = xmod.jit(xmod.vmap(ATNIAE(
+            autoencoder, discriminator, injector, random, ae_loss, gen_loss,
+            disc_loss), FLAGS.data_batch))
     optimizer = xopt.jit(xopt.vmap(xopt.Container(enc_opt, dec_opt, disc_opt)))
     evaluator = xeval.jit(xeval.vmap(Evaluator(), FLAGS.data_batch))
     learner = Learner(optimizer, model, None, evaluator)
     checkpoint = os.path.join(
         FLAGS.main_checkpoint,
-        'atnnfae_resconv-{}-{}-{}-{}-{}-{}-{}-{}-{}'.format(
-            FLAGS.enc_level, FLAGS.enc_depth, FLAGS.enc_input,
+        '{}_resconv-{}-{}-{}-{}-{}-{}-{}-{}-{}'.format(
+            FLAGS.main_model, FLAGS.enc_level, FLAGS.enc_depth, FLAGS.enc_input,
             FLAGS.enc_feature, FLAGS.enc_output, '-'.join(FLAGS.enc_kernel),
             '-'.join(FLAGS.enc_pool), FLAGS.enc_sigma, FLAGS.enc_transfer)
         + '_resdeconv-{}-{}-{}-{}-{}-{}-{}-{}-{}'.format(

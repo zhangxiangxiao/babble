@@ -221,9 +221,48 @@ def FeatureInjector(beta=0.1):
         xnn.Add())
 
 
+def InputInjector(in_dim, beta=0.1):
+    """Noise injector to discrete inputs."""
+    return xnn.Sequential(
+        # inputs -> [inputs] -> [inputs, inputs, inputs]
+        xnn.Pack(), xnn.Group([0, 0, 0]),
+        # [inputs, inputs] -> [inputs, noise, factor]
+        xnn.Parallel(
+            # inputs -> inputs
+            xnn.Identity(),
+            # inputs -> noise
+            xnn.Sequential(xnn.Mean(axis=0),
+                           xnn.RandintLike(None, minval=0, maxval=in_dim),
+                           xnn.OneHot(num_classes=in_dim, axis=0)),
+            # inputs -> factor
+            xnn.Sequential(xnn.Mean(axis=0), xnn.BernoulliLike(None, p=beta))),
+        # [inputs, factor, noise] -> [[inputs, factor], [noise, factor]]
+        xnn.Group([[0, 2], [1, 2]]),
+        # [[inputs, factor], [noise, factor] -> [inputs, noise]
+        xnn.Parallel(
+            # [inputs, factor] -> inputs
+            xnn.Sequential(
+                # [inputs, factor] -> [inputs, 1 - factor]
+                xnn.Parallel(xnn.Identity(),
+                             xnn.Sequential(xnn.MulConst(-1), xnn.AddConst(1))),
+                # [inputs, 1 - factor] -> inputs
+                xnn.Multiply()),
+            # [noise, factor] -> noise
+            xnn.Multiply()),
+        # [inputs, noise] -> inputs + noise
+        xnn.Add())
+
+
 def FeatureRandom():
     """Random number generator."""
     return xnn.NormalLike()
+
+
+def InputRandom(in_dim):
+    """Random input generator."""
+    return xnn.Sequential(
+        xnn.Mean(axis=0), xnn.RandintLike(None, minval=0, maxval=in_dim),
+        xnn.OneHot(num_classes=in_dim, axis=0))
 
 
 def AELoss(weight=1):
