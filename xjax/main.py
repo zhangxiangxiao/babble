@@ -12,9 +12,9 @@ from xjax import xopt
 
 from data import Data
 from module import Encoder, Decoder, Discriminator
-from module import FeatureInjector, FeatureRandom
+from module import FeatureInjector, InputInjector, FeatureRandom, InputRandom
 from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
-from model import ATNNFAE
+from model import ATNNFAE, ATNIAE
 from optimizer import Momentum
 from evaluator import Evaluator
 from learner import Learner
@@ -145,6 +145,7 @@ def main(unused_argv):
                            FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_decay)
+        optimizer = xopt.jit(xopt.vmap(xopt.Container(enc_opt, dec_opt, disc_opt)))
     elif FLAGS.main_model == 'atniae':
         injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
         random = InputRandom(FLAGS.enc_input)
@@ -152,7 +153,11 @@ def main(unused_argv):
         model = xmod.jit(xmod.vmap(ATNIAE(
             autoencoder, discriminator, injector, random, ae_loss, gen_loss,
             disc_loss), FLAGS.data_batch))
-    optimizer = xopt.jit(xopt.vmap(xopt.Container(enc_opt, dec_opt, disc_opt)))
+        autoencoder_opt = Momentum(autoencoder.params, FLAGS.opt_rate,
+                                   FLAGS.opt_coeff, FLAGS.opt_decay)
+        disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
+                            FLAGS.opt_coeff, FLAGS.opt_decay)
+        optimizer = xopt.jit(xopt.vmap(xopt.Container(autoencoder_opt, disc_opt)))
     evaluator = xeval.jit(xeval.vmap(Evaluator(), FLAGS.data_batch))
     learner = Learner(optimizer, model, None, evaluator)
     checkpoint = os.path.join(
