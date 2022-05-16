@@ -26,20 +26,14 @@ class ATNNFAETest(absltest.TestCase):
             xnn.Linear(8, 16), xnn.ReLU(), xnn.Linear(16, 1), xnn.Mean())
         # Noise injector adds noise from normal distribution.
         self.inj = xnn.Sequential(
-            # inputs -> [inputs] -> [inputs, [inputs, inputs]]
-            xnn.Pack(), xnn.Group([0, [0, 0]]),
-            # [inputs, [inputs, inputs]] -> [inputs, noise]
+            # inputs -> [inputs] -> [inputs, inputs]
+            xnn.Pack(), xnn.Group([0, 0]),
+            # [inputs, inputs] -> [inputs, noise]
             xnn.Parallel(
                 # inputs -> inputs
                 xnn.Identity(),
-                # [inputs, inputs] -> noise
-                xnn.Sequential(
-                    # [inputs, inputs] -> [noise, scale]
-                    xnn.Parallel(
-                        xnn.NormalLike(),
-                        xnn.Sequential(xnn.Exponential(), xnn.MulConst(0.1))),
-                    # [noise, scale] -> noise
-                    xnn.Multiply())),
+                # inputs -> noise
+                xnn.Sequential(xnn.NormalLike(), xnn.MulConst(0.1))),
             # [inputs, noise] -> [inputs + noise]
             xnn.Add())
         # Random generator.
@@ -56,15 +50,9 @@ class ATNNFAETest(absltest.TestCase):
                 xnn.Identity()),
             # [loss, weights] -> weight
             xnn.Multiply())
-        # Generator loss is log-cosh loss towards 0.
-        self.gen_loss = xnn.Sequential(
-            # inputs -> [inputs] -> [inputs, inputs]
-            xnn.Pack(), xnn.Group([0, 0]),
-            # [inputs, inputs] -> [inputs, zeros]
-            xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
-            # [inputs, zeros] -> logcosh
-            xnn.LogCosh(), xnn.Mean())
-        # Discriminator is log-cosh loss towards 0 for real, and -1 for fake.
+        # Generator loss is log-cosh loss.
+        self.gen_loss = xnn.Sequential(xnn.LogCosh(), xnn.Mean())
+        # Discriminator is log-cosh loss towards 1 for real, and -1 for fake.
         self.disc_loss = xnn.Sequential(
             # [real, fake] -> [[real, real], [fake, fake]]
             xnn.Group([[0, 0], [1, 1]]),
@@ -73,7 +61,7 @@ class ATNNFAETest(absltest.TestCase):
                 # [real, real] -> real_logcosh
                 xnn.Sequential(
                     # [real, real] -> [real, zeros]
-                    xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
+                    xnn.Parallel(xnn.Identity(), xnn.OnesLike()),
                     # [real, zeros] -> real_logcosh
                     xnn.LogCosh()),
                 # [fake, fake] -> fake_logcosh
@@ -95,15 +83,11 @@ class ATNNFAETest(absltest.TestCase):
         forward, _, params, states = self.model
         inputs = self.inputs
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        (tar_outputs, dec_outputs, gen_outputs, real_outputs,
-         fake_outputs) = net_outputs
+        dec_outputs, gen_outputs, real_outputs, fake_outputs = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         enc_forward, enc_params, enc_states = self.enc
         enc_outputs, enc_states = enc_forward(enc_params, inputs[0], enc_states)
         dec_forward, dec_params, dec_states = self.dec
-        ref_tar_outputs, dec_states = dec_forward(
-            dec_params, enc_outputs, dec_states)
-        self.assertTrue(jnp.allclose(ref_tar_outputs, tar_outputs))
         inj_forward, inj_params, inj_states = self.inj
         inj_outputs, inj_states = inj_forward(
             inj_params, enc_outputs, inj_states)
@@ -118,7 +102,7 @@ class ATNNFAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_gen_outputs, gen_outputs))
         disc_forward, disc_params, disc_states = self.disc
         ref_real_outputs, disc_states = disc_forward(
-            disc_params, tar_outputs, disc_states)
+            disc_params, dec_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_real_outputs, real_outputs))
         ref_fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
@@ -129,7 +113,7 @@ class ATNNFAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_ae_loss_outputs, ae_loss_outputs))
         gen_loss_forward, gen_loss_params, gen_loss_states = self.gen_loss
         ref_gen_loss_outputs, gen_loss_states = gen_loss_forward(
-            gen_loss_params, fake_outputs, ae_loss_states)
+            gen_loss_params, [real_outputs, fake_outputs], ae_loss_states)
         self.assertTrue(jnp.allclose(ref_gen_loss_outputs, gen_loss_outputs))
         disc_loss_forward, disc_loss_params, disc_loss_states = self.disc_loss
         ref_disc_loss_outputs, disc_loss_states = disc_loss_forward(
@@ -148,7 +132,7 @@ class ATNNFAETest(absltest.TestCase):
                      [net_outputs, loss_outputs])
         def ref_forward_enc(params, inputs, states):
             _, loss_outputs, _ = forward(params, inputs, states)
-            return loss_outputs[0]
+            return loss_outputs[0] + loss_outputs[1]
         ref_backward_enc = jax.grad(ref_forward_enc)
         ref_grads = ref_backward_enc(params, inputs, states)
         jax.tree_map(lambda x, y: self.assertTrue(jnp.allclose(x, y)),
@@ -173,10 +157,8 @@ class ATNNFAETest(absltest.TestCase):
         inputs = [jrand.normal(xrand.split(), (2, 8)),
                   jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        [tar_outputs, dec_outputs, gen_outputs, real_outputs,
-         fake_outputs] = net_outputs
+        dec_outputs, gen_outputs, real_outputs, fake_outputs = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
-        self.assertEqual((2, 8), tar_outputs.shape)
         self.assertEqual((2, 8), dec_outputs.shape)
         self.assertEqual((2, 8), gen_outputs.shape)
         self.assertEqual((2,), real_outputs.shape)
@@ -204,20 +186,14 @@ class ATNIAETest(absltest.TestCase):
             xnn.Linear(8, 16), xnn.ReLU(), xnn.Linear(16, 1), xnn.Mean())
         # Noise injector adds noise from normal distribution.
         self.inj = xnn.Sequential(
-            # inputs -> [inputs] -> [inputs, [inputs, inputs]]
-            xnn.Pack(), xnn.Group([0, [0, 0]]),
-            # [inputs, [inputs, inputs]] -> [inputs, noise]
+            # inputs -> [inputs] -> [inputs, inputs]
+            xnn.Pack(), xnn.Group([0, 0]),
+            # [inputs, inputs] -> [inputs, noise]
             xnn.Parallel(
                 # inputs -> inputs
                 xnn.Identity(),
-                # [inputs, inputs] -> noise
-                xnn.Sequential(
-                    # [inputs, inputs] -> [noise, scale]
-                    xnn.Parallel(
-                        xnn.NormalLike(),
-                        xnn.Sequential(xnn.Exponential(), xnn.MulConst(0.1))),
-                    # [noise, scale] -> noise
-                    xnn.Multiply())),
+                # inputs -> noise
+                xnn.Sequential(xnn.NormalLike(), xnn.MulConst(0.1))),
             # [inputs, noise] -> [inputs + noise]
             xnn.Add())
         # Random generator.
@@ -234,14 +210,8 @@ class ATNIAETest(absltest.TestCase):
                 xnn.Identity()),
             # [loss, weights] -> weight
             xnn.Multiply())
-        # Generator loss is log-cosh loss towards 0.
-        self.gen_loss = xnn.Sequential(
-            # inputs -> [inputs] -> [inputs, inputs]
-            xnn.Pack(), xnn.Group([0, 0]),
-            # [inputs, inputs] -> [inputs, zeros]
-            xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
-            # [inputs, zeros] -> logcosh
-            xnn.LogCosh(), xnn.Mean())
+        # Generator loss is log-cosh loss.
+        self.gen_loss = xnn.Sequential(xnn.LogCosh(), xnn.Mean())
         # Discriminator is log-cosh loss towards 0 for real, and -1 for fake.
         self.disc_loss = xnn.Sequential(
             # [real, fake] -> [[real, real], [fake, fake]]
@@ -273,13 +243,9 @@ class ATNIAETest(absltest.TestCase):
         forward, _, params, states = self.model
         inputs = self.inputs
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        (tar_outputs, dec_outputs, gen_outputs, real_outputs,
-         fake_outputs) = net_outputs
+        dec_outputs, gen_outputs, real_outputs, fake_outputs = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
         net_forward, net_params, net_states = self.net
-        ref_tar_outputs, dec_states = net_forward(
-            net_params, inputs[0], net_states)
-        self.assertTrue(jnp.allclose(ref_tar_outputs, tar_outputs))
         inj_forward, inj_params, inj_states = self.inj
         inj_outputs, inj_states = inj_forward(
             inj_params, inputs[0], inj_states)
@@ -294,7 +260,7 @@ class ATNIAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_gen_outputs, gen_outputs))
         disc_forward, disc_params, disc_states = self.disc
         ref_real_outputs, disc_states = disc_forward(
-            disc_params, tar_outputs, disc_states)
+            disc_params, dec_outputs, disc_states)
         self.assertTrue(jnp.allclose(ref_real_outputs, real_outputs))
         ref_fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
@@ -305,7 +271,7 @@ class ATNIAETest(absltest.TestCase):
         self.assertTrue(jnp.allclose(ref_ae_loss_outputs, ae_loss_outputs))
         gen_loss_forward, gen_loss_params, gen_loss_states = self.gen_loss
         ref_gen_loss_outputs, gen_loss_states = gen_loss_forward(
-            gen_loss_params, fake_outputs, ae_loss_states)
+            gen_loss_params, [real_outputs, fake_outputs], ae_loss_states)
         self.assertTrue(jnp.allclose(ref_gen_loss_outputs, gen_loss_outputs))
         disc_loss_forward, disc_loss_params, disc_loss_states = self.disc_loss
         ref_disc_loss_outputs, disc_loss_states = disc_loss_forward(
@@ -315,10 +281,8 @@ class ATNIAETest(absltest.TestCase):
     def test_backward(self):
         forward, backward, params, states = self.model
         inputs = self.inputs
-        grads, net_outputs, loss_outputs, _ = backward(
-            params, inputs, states)
-        ref_net_outputs, ref_loss_outputs, _ = forward(
-            params, inputs, states)
+        grads, net_outputs, loss_outputs, _ = backward(params, inputs, states)
+        ref_net_outputs, ref_loss_outputs, _ = forward(params, inputs, states)
         jax.tree_map(lambda x, y: self.assertTrue(jnp.allclose(x, y)),
                      [ref_net_outputs, ref_loss_outputs],
                      [net_outputs, loss_outputs])
@@ -342,10 +306,8 @@ class ATNIAETest(absltest.TestCase):
         inputs = [jrand.normal(xrand.split(), (2, 8)),
                   jrand.normal(xrand.split(), (2,))]
         net_outputs, loss_outputs, states = forward(params, inputs, states)
-        [tar_outputs, dec_outputs, gen_outputs, real_outputs,
-         fake_outputs] = net_outputs
+        dec_outputs, gen_outputs, real_outputs, fake_outputs = net_outputs
         ae_loss_outputs, gen_loss_outputs, disc_loss_outputs = loss_outputs
-        self.assertEqual((2, 8), tar_outputs.shape)
         self.assertEqual((2, 8), dec_outputs.shape)
         self.assertEqual((2, 8), gen_outputs.shape)
         self.assertEqual((2,), real_outputs.shape)

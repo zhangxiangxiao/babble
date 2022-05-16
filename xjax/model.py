@@ -110,14 +110,13 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         grads_gen_loss_outputs = map_ones_like(gen_loss_outputs)
         grads_real_outputs_gen, grads_fake_outputs_gen = gen_loss_vjpf(
             grads_gen_loss_outputs)
-        _, grads_gen_outputs_gen = disc_vjpf_fake(grads_fake_outputs_gen)
         _, grads_dec_outputs_gen = disc_vjpf_real(grads_real_outputs_gen)
+        _, grads_gen_outputs_gen = disc_vjpf_fake(grads_fake_outputs_gen)
         grads_dec_params_gen = gen_vjpf(grads_gen_outputs_gen)
         # Backward propagate to autoencoder.
         grads_ae_loss_outputs = map_ones_like(ae_loss_outputs)
         grads_dec_outputs_ae, _, _ = ae_loss_vjpf(grads_ae_loss_outputs)
-        grads_dec_outputs = map_add(
-            grads_dec_outputs_ae, grads_dec_outputs_gen)
+        grads_dec_outputs = map_add(grads_dec_outputs_ae, grads_dec_outputs_gen)
         grads_dec_params_ae, grads_inj_outputs = dec_vjpf(grads_dec_outputs)
         grads_dec_params = map_add(grads_dec_params_ae, grads_dec_params_gen)
         grads_enc_outputs = inj_vjpf(grads_inj_outputs)
@@ -158,7 +157,6 @@ def ATNIAE(net, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         net_states, disc_states, inj_states, rnd_states = states[:4]
         ae_loss_states, gen_loss_states, disc_loss_states = states[4:]
         targets, weights = inputs
-        tar_outputs, net_states = net_forward(net_params, targets, net_states)
         inj_outputs, inj_states = inj_forward(inj_params, targets, inj_states)
         dec_outputs, net_states = net_forward(
             net_params, inj_outputs, net_states)
@@ -166,15 +164,14 @@ def ATNIAE(net, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         gen_outputs, net_states = net_forward(
             net_params, rnd_outputs, net_states)
         real_outputs, disc_states = disc_forward(
-            disc_params, tar_outputs, disc_states)
+            disc_params, dec_outputs, disc_states)
         fake_outputs, disc_states = disc_forward(
             disc_params, gen_outputs, disc_states)
-        net_outputs = [tar_outputs, dec_outputs, gen_outputs,
-                       real_outputs, fake_outputs]
+        net_outputs = [dec_outputs, gen_outputs, real_outputs, fake_outputs]
         ae_loss_outputs, ae_loss_states = ae_loss_forward(
             ae_loss_params, [dec_outputs, targets, weights], ae_loss_states)
         gen_loss_outputs, gen_loss_states = gen_loss_forward(
-            gen_loss_params, fake_outputs, gen_loss_states)
+            gen_loss_params, [real_outputs, fake_outputs], gen_loss_states)
         disc_loss_outputs, disc_loss_states = disc_loss_forward(
             disc_loss_params, [real_outputs, fake_outputs], disc_loss_states)
         loss_outputs = [ae_loss_outputs, gen_loss_outputs, disc_loss_outputs]
@@ -187,49 +184,50 @@ def ATNIAE(net, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
         ae_loss_states, gen_loss_states, disc_loss_states = states[4:]
         targets, weights = inputs
         # Forward propagate and build backward graph.
-        tar_outputs, net_states = net_forward(net_params, targets, net_states)
         inj_outputs, inj_states = inj_forward(inj_params, targets, inj_states)
         net_vjpf, dec_outputs, net_states = vjp(
             net_forward, net_params, inj_outputs, net_states)
         rnd_outputs, rnd_states = rnd_forward(rnd_params, targets, rnd_states)
         gen_vjpf, gen_outputs, gen_states = vjp(
             net_forward, net_params, rnd_outputs, net_states)
-        disc_vjpf_real, real_outputs, disc_states = vjp(
-            disc_forward, disc_params, tar_outputs, disc_states)
+        disc_vjpf_real, real_outputs, disc_states = vjp_full(
+            disc_forward, disc_params, dec_outputs, disc_states)
         disc_vjpf_fake, fake_outputs, disc_states = vjp_full(
             disc_forward, disc_params, gen_outputs, disc_states)
-        net_outputs = [tar_outputs, dec_outputs, gen_outputs,
-                       real_outputs, fake_outputs]
+        net_outputs = [dec_outputs, gen_outputs, real_outputs, fake_outputs]
         ae_loss_vjpf, ae_loss_outputs, ae_loss_states = vjp_inputs(
             ae_loss_forward, ae_loss_params, [dec_outputs, targets, weights],
             ae_loss_states)
         gen_loss_vjpf, gen_loss_outputs, gen_loss_states = vjp_inputs(
-            gen_loss_forward, gen_loss_params, fake_outputs, gen_loss_states)
+            gen_loss_forward, gen_loss_params, [real_outputs, fake_outputs],
+            gen_loss_states)
         disc_loss_vjpf, disc_loss_outputs, disc_loss_states = vjp_inputs(
             disc_loss_forward, disc_loss_params, [real_outputs, fake_outputs],
             disc_loss_states)
         loss_outputs = [ae_loss_outputs, gen_loss_outputs, disc_loss_outputs]
         states = (net_states, disc_states, inj_states, rnd_states,
                   ae_loss_states, gen_loss_states, disc_loss_states)
-        # Backward propagate to autoencoder.
-        grads_ae_loss_outputs = map_ones_like(ae_loss_outputs)
-        grads_dec_outputs, _, _ = ae_loss_vjpf(grads_ae_loss_outputs)
-        grads_net_params = net_vjpf(grads_dec_outputs)
-        # Backward propagate to generator.
-        grads_gen_loss_outputs = map_ones_like(gen_loss_outputs)
-        grads_fake_outputs_gen = gen_loss_vjpf(grads_gen_loss_outputs)
-        _, grads_gen_outputs = disc_vjpf_fake(grads_fake_outputs_gen)
-        grads_gen_params = gen_vjpf(grads_gen_outputs)
         # Backward propagate to discriminator
         grads_disc_loss_outputs = map_ones_like(disc_loss_outputs)
-        grads_real_outputs, grads_fake_outputs_disc = (
+        grads_real_outputs_disc, grads_fake_outputs_disc = (
             disc_loss_vjpf(grads_disc_loss_outputs))
-        grads_disc_params_real = disc_vjpf_real(grads_real_outputs)
+        grads_disc_params_real, _ = disc_vjpf_real(grads_real_outputs_disc)
         grads_disc_params_fake, _ = disc_vjpf_fake(grads_fake_outputs_disc)
-        # Add parameters together
-        grads_net_params = map_add(grads_net_params, grads_gen_params)
         grads_disc_params = map_add(
             grads_disc_params_real, grads_disc_params_fake)
+        # Backward propagate to generator.
+        grads_gen_loss_outputs = map_ones_like(gen_loss_outputs)
+        grads_real_outputs_gen, grads_fake_outputs_gen = gen_loss_vjpf(
+            grads_gen_loss_outputs)
+        _, grads_dec_outputs_gen = disc_vjpf_real(grads_real_outputs_gen)
+        _, grads_gen_outputs_gen = disc_vjpf_fake(grads_fake_outputs_gen)
+        grads_net_params_gen = gen_vjpf(grads_gen_outputs_gen)
+        # Backward propagate to autoencoder.
+        grads_ae_loss_outputs = map_ones_like(ae_loss_outputs)
+        grads_dec_outputs_ae, _, _ = ae_loss_vjpf(grads_ae_loss_outputs)
+        grads_dec_outputs = map_add(grads_dec_outputs_ae, grads_dec_outputs_gen)
+        grads_net_params_ae = net_vjpf(grads_dec_outputs)
+        grads_net_params = map_add(grads_net_params_ae, grads_net_params_gen)
         grads = (grads_net_params, grads_disc_params)
         return grads, net_outputs, loss_outputs, states
     return ModelTuple(forward, backward, initial_params, initial_states)
