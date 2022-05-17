@@ -291,7 +291,7 @@ def GenLoss(weight=1):
                           xnn.MulConst(weight))
 
 
-def DiscLoss(weight=1):
+def DiscLoss(margin=1, weight=1):
     """Discriminator loss. LogCosh with zero for real, negative one for fake."""
     # [real, fake] -> loss
     return xnn.Sequential(
@@ -301,10 +301,12 @@ def DiscLoss(weight=1):
         xnn.Parallel(
             # [real, real] -> [real, ones] -> real_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.OnesLike()), xnn.LogCosh()),
+                xnn.Parallel(xnn.Identity(), xnn.FullLike(margin)),
+                xnn.LogCosh()),
             # [fake, fake] -> [fake, -ones] -> fake_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.LogCosh())),
+                xnn.Parallel(xnn.Identity(), xnn.FullLike(-margin)),
+                xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
 
