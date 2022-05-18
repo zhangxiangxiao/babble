@@ -41,7 +41,7 @@ flags.DEFINE_integer('enc_output', 256, 'Encoder output dimension.')
 flags.DEFINE_list('enc_kernel', '3', 'Encoder kernel size.')
 flags.DEFINE_list('enc_pool', '2', 'Encoder pooling size.')
 flags.DEFINE_float('enc_sigma', 0.000001, 'Encoder initialization.')
-flags.DEFINE_enum('enc_transfer', 'tanh', ['relu', 'tanh'],
+flags.DEFINE_enum('enc_transfer', 'relu', ['relu', 'tanh'],
                   'Encoder transfer function.')
 
 flags.DEFINE_integer('dec_level', 4, 'Decoder pooling levels.')
