@@ -2,8 +2,8 @@
 
 from module import Residual, ResLinear, ResConv, ResDeconv
 from module import Encoder, Decoder, Discriminator
-from module import FeatureInjector, FeatureRandom
-from module import AELoss, GenLoss, DiscLoss
+from module import FeatureInjector, InputInjector, FeatureRandom, InputRandom
+from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
 
 from absl.testing import absltest
 import jax
@@ -17,7 +17,7 @@ class ResidualTest(absltest.TestCase):
     def setUp(self):
         self.linear1 = xnn.Linear(8, 16)
         self.linear2 = xnn.Linear(16, 4)
-        self.transfer = xnn.ReLU()
+        self.transfer = xnn.Tanh()
         self.resize = xnn.ResizeLike()
         self.module = Residual(self.linear1, self.linear2)
 
@@ -175,9 +175,43 @@ class FeatureInjectorTest(absltest.TestCase):
         self.assertEqual(inputs.shape, outputs.shape)
 
 
+class InputInjectorTest(absltest.TestCase):
+    def setUp(self):
+        self.module = InputInjector(4, 1e-1)
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+
 class FeatureRandomTest(absltest.TestCase):
     def setUp(self):
         self.module = FeatureRandom()
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = jrand.normal(xrand.split(), (4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = jrand.normal(xrand.split(), (2, 4, 8))
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual(inputs.shape, outputs.shape)
+
+
+class InputRandomTest(absltest.TestCase):
+    def setUp(self):
+        self.module = InputRandom(4)
 
     def test_forward(self):
         forward, params, states = self.module
@@ -219,15 +253,19 @@ class GenLossTest(absltest.TestCase):
 
     def test_forward(self):
         forward, params, states = self.module
-        inputs = [jrand.normal(xrand.split(), (4, 8)),
-                  jrand.normal(xrand.split(), (4, 4))]
+        inputs = [[jrand.normal(xrand.split(), (4, 8)),
+                   jrand.normal(xrand.split(), (4, 4))],
+                  [jrand.normal(xrand.split(), (4, 8)),
+                   jrand.normal(xrand.split(), (4, 4))]]
         outputs, states = forward(params, inputs, states)
         self.assertEqual((), outputs.shape)
 
     def test_vmap(self):
         forward, params, states = xnn.vmap(self.module, 2)
-        inputs = [jrand.normal(xrand.split(), (2, 4, 8)),
-                  jrand.normal(xrand.split(), (2, 4, 4))]
+        inputs = [[jrand.normal(xrand.split(), (2, 4, 8)),
+                   jrand.normal(xrand.split(), (2, 4, 4))],
+                  [jrand.normal(xrand.split(), (2, 4, 8)),
+                   jrand.normal(xrand.split(), (2, 4, 4))]]
         outputs, states = forward(params, inputs, states)
         self.assertEqual((2,), outputs.shape)
 
@@ -235,6 +273,29 @@ class GenLossTest(absltest.TestCase):
 class DiscLossTest(absltest.TestCase):
     def setUp(self):
         self.module = DiscLoss()
+
+    def test_forward(self):
+        forward, params, states = self.module
+        inputs = [[jrand.normal(xrand.split(), (4, 8)),
+                   jrand.normal(xrand.split(), (4, 4))],
+                  [jrand.normal(xrand.split(), (4, 8)),
+                   jrand.normal(xrand.split(), (4, 4))]]
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((), outputs.shape)
+
+    def test_vmap(self):
+        forward, params, states = xnn.vmap(self.module, 2)
+        inputs = [[jrand.normal(xrand.split(), (2, 4, 8)),
+                   jrand.normal(xrand.split(), (2, 4, 4))],
+                  [jrand.normal(xrand.split(), (2, 4, 8)),
+                   jrand.normal(xrand.split(), (2, 4, 4))]]
+        outputs, states = forward(params, inputs, states)
+        self.assertEqual((2,), outputs.shape)
+
+
+class DiscLossSigmoidTest(absltest.TestCase):
+    def setUp(self):
+        self.module = DiscLossSigmoid()
 
     def test_forward(self):
         forward, params, states = self.module

@@ -46,21 +46,17 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
             total_loss_outputs, total_eval_outputs):
         logging.info(
             '%s step = %d, ae_loss = (%g, %g), gen_loss= (%g, %g), '
-            'disc_loss = (%g, %g), tar_eval = (%g, %g), '
-            'dec_eval = (%g, %g)', msg, step, jnp.mean(loss_outputs[0]),
-            jnp.mean(total_loss_outputs[0]), jnp.mean(loss_outputs[1]),
-            jnp.mean(total_loss_outputs[1]), jnp.mean(loss_outputs[2]),
-            jnp.mean(total_loss_outputs[2]), jnp.mean(eval_outputs[0]),
-            jnp.mean(total_eval_outputs[0]), jnp.mean(eval_outputs[1]),
-            jnp.mean(total_eval_outputs[1]))
+            'disc_loss = (%g, %g), dec_eval = (%g, %g)', msg, step,
+            jnp.mean(loss_outputs[0]), jnp.mean(total_loss_outputs[0]),
+            jnp.mean(loss_outputs[1]), jnp.mean(total_loss_outputs[1]),
+            jnp.mean(loss_outputs[2]), jnp.mean(total_loss_outputs[2]),
+            jnp.mean(eval_outputs), jnp.mean(total_eval_outputs))
         logging.info('   inputs = %s', array_to_string(jnp.argmax(
             inputs[0][0], axis=0)))
-        logging.info('  targets = %s', array_to_string(jnp.argmax(
-            net_outputs[0][0], axis=0)))
         logging.info('  decoded = %s', array_to_string(jnp.argmax(
-            net_outputs[1][0], axis=0)))
+            net_outputs[0][0], axis=0)))
         logging.info('generated = %s', array_to_string(jnp.argmax(
-            net_outputs[2][0], axis=0)))
+            net_outputs[1][0], axis=0)))
     train_callback_time = time.time()
     def train_callback(*args):
         nonlocal train_callback_time
@@ -101,15 +97,13 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
             logging.info(
                 'Finish epoch = %d, ae_loss = (%g, %g, %g), '
                 'gen_loss = (%g, %g, %g), disc_loss = (%g, %g, %g), '
-                'tar_eval = (%g, %g, %g), dec_eval = (%g, %g, %g).',
-                epoch, jnp.mean(loss_train[0]), jnp.mean(loss_on_train[0]),
+                'dec_eval = (%g, %g, %g).', epoch,
+                jnp.mean(loss_train[0]), jnp.mean(loss_on_train[0]),
                 jnp.mean(loss_on_valid[0]), jnp.mean(loss_train[1]),
                 jnp.mean(loss_on_train[1]), jnp.mean(loss_on_valid[1]),
                 jnp.mean(loss_train[2]), jnp.mean(loss_on_train[2]),
-                jnp.mean(loss_on_valid[2]), jnp.mean(eval_train[0]),
-                jnp.mean(eval_on_train[0]), jnp.mean(eval_on_valid[0]),
-                jnp.mean(eval_train[1]), jnp.mean(eval_on_train[1]),
-                jnp.mean(eval_on_valid[1]))
+                jnp.mean(loss_on_valid[2]), jnp.mean(eval_train),
+                jnp.mean(eval_on_train), jnp.mean(eval_on_valid))
             logging.info('Save to %s', checkpoint)
             record.append((loss_train, eval_train, loss_on_train, eval_on_train,
                            loss_on_valid, eval_on_valid))

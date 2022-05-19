@@ -4,10 +4,10 @@ import jax.nn.initializers as jinit
 import jax.random as jrand
 from xjax import xnn
 from xjax.xnn import tree_forward, ModuleTuple
-from xjax.xnn import Linear, Conv, Deconv, ResizeLike, ReLU
+from xjax.xnn import Linear, Conv, Deconv, ResizeLike, Tanh
 
 
-def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
+def Residual(module1, module2, transfer=Tanh, resize=ResizeLike):
     """Residually connected layer with resizing."""
     # inputs -> res_out
     return xnn.Sequential(
@@ -23,7 +23,7 @@ def Residual(module1, module2, transfer=ReLU, resize=ResizeLike):
         resize(), xnn.Add())
 
 
-def ResLinear(in_dim, feat_dim, out_dim, transfer=ReLU, resize=ResizeLike,
+def ResLinear(in_dim, feat_dim, out_dim, transfer=Tanh, resize=ResizeLike,
               w_init=jinit.normal(1e-6), b_init=jinit.normal(1e-6), rng=None):
     """Residually connected linear layer."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -35,7 +35,7 @@ def ResLinear(in_dim, feat_dim, out_dim, transfer=ReLU, resize=ResizeLike,
 def ResConv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
             first_stride=None, second_stride=None, first_dilation=None,
             second_dilation=None, first_padding='SAME', second_padding='SAME',
-            transfer=ReLU, resize=ResizeLike, w_init=jinit.normal(1e-6),
+            transfer=Tanh, resize=ResizeLike, w_init=jinit.normal(1e-6),
             b_init=jinit.normal(1e-6), rng=None):
     """Residually connected convolution."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -49,7 +49,7 @@ def ResConv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
 def ResDeconv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
               first_stride=None, second_stride=None, first_dilation=None,
               second_dilation=None, first_padding='SAME', second_padding='SAME',
-              transfer=ReLU, resize=ResizeLike, w_init=jinit.normal(1e-6),
+              transfer=Tanh, resize=ResizeLike, w_init=jinit.normal(1e-6),
               b_init=jinit.normal(1e-6), rng=None):
     """Residually connected deconvolution."""
     rng1, rng2 = jrand.split(rng) if rng is not None else (None, None)
@@ -61,7 +61,7 @@ def ResDeconv(in_dim, feat_dim, out_dim, first_kernel, second_kernel,
 
 
 def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
-            sigma=1e-6, transfer=xnn.ReLU):
+            sigma=1e-6, transfer=Tanh):
     """Encoder."""
     layers = []
     # inputs, shape=(i, l) -> inputs, shape=(l, i)
@@ -103,7 +103,7 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
 
 
 def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
-            sigma=1e-6, transfer=xnn.ReLU):
+            sigma=1e-6, transfer=Tanh):
     """Decoder."""
     layers = []
     # inputs -> inputs
@@ -149,7 +149,7 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
 
 
 def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
-                  pool=(2,), sigma=1e-6, transfer=xnn.ReLU):
+                  pool=(2,), dropout=0.5, sigma=1e-6, transfer=Tanh):
     """Discriminator that is dense."""
     layers = []
     layers.append(xnn.Sequential(
@@ -163,6 +163,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         # features, shape=(l, f) -> features, shape=(f, l)
         xnn.Transpose(),
         transfer(),
+        xnn.Dropout(dropout),
         ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
                 transfer=transfer, w_init=jinit.normal(sigma),
                 b_init=jinit.normal(sigma))))
@@ -197,6 +198,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         xnn.Transpose(),
         # features, shape=(l, f) -> outputs, shape=(l, o)
         transfer(),
+        xnn.Dropout(dropout),
         ResLinear(feat_dim, feat_dim, out_dim, transfer,
                   w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)),
         # outputs, shape=(l, o) -> outputs, shape=(o, l)
@@ -204,23 +206,49 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     return xnn.Sequential(dense, shared)
 
 
-def FeatureInjector(beta=1):
+def FeatureInjector(beta=0.1):
     """Noise injector."""
     return xnn.Sequential(
-        # inputs -> [inputs] -> [inputs, [inputs, inputs]]
-        xnn.Pack(), xnn.Group([0, [0, 0]]),
-        # [inputs, [inputs, inputs]] -> [inputs, noise]
+        # inputs -> [inputs] -> [inputs, inputs]
+        xnn.Pack(), xnn.Group([0, 0]),
+        # [inputs, inputs] -> [inputs, noise]
         xnn.Parallel(
             # inputs -> inputs
             xnn.Identity(),
-            # [inputs, inputs] -> noise
+            # inputs -> noise
+            xnn.Sequential(xnn.NormalLike(), xnn.MulConst(beta))),
+        # [inputs, noise] -> inputs + noise
+        xnn.Add())
+
+
+def InputInjector(in_dim, beta=0.1):
+    """Noise injector to discrete inputs."""
+    return xnn.Sequential(
+        # inputs -> [inputs] -> [inputs, inputs, inputs]
+        xnn.Pack(), xnn.Group([0, 0, 0]),
+        # [inputs, inputs] -> [inputs, noise, factor]
+        xnn.Parallel(
+            # inputs -> inputs
+            xnn.Identity(),
+            # inputs -> noise
+            xnn.Sequential(xnn.Mean(axis=0),
+                           xnn.RandintLike(None, minval=0, maxval=in_dim),
+                           xnn.OneHot(num_classes=in_dim, axis=0)),
+            # inputs -> factor
+            xnn.Sequential(xnn.Mean(axis=0), xnn.BernoulliLike(None, p=beta))),
+        # [inputs, factor, noise] -> [[inputs, factor], [noise, factor]]
+        xnn.Group([[0, 2], [1, 2]]),
+        # [[inputs, factor], [noise, factor] -> [inputs, noise]
+        xnn.Parallel(
+            # [inputs, factor] -> inputs
             xnn.Sequential(
-                # [inputs, inputs] -> [noise, scale]
-                xnn.Parallel(
-                    xnn.NormalLike(),
-                    xnn.Sequential(xnn.Exponential(), xnn.MulConst(beta))),
-                # [noise, scale] -> noise
-                xnn.Multiply())),
+                # [inputs, factor] -> [inputs, 1 - factor]
+                xnn.Parallel(xnn.Identity(),
+                             xnn.Sequential(xnn.MulConst(-1), xnn.AddConst(1))),
+                # [inputs, 1 - factor] -> inputs
+                xnn.Multiply()),
+            # [noise, factor] -> noise
+            xnn.Multiply()),
         # [inputs, noise] -> inputs + noise
         xnn.Add())
 
@@ -228,6 +256,13 @@ def FeatureInjector(beta=1):
 def FeatureRandom():
     """Random number generator."""
     return xnn.NormalLike()
+
+
+def InputRandom(in_dim):
+    """Random input generator."""
+    return xnn.Sequential(
+        xnn.Mean(axis=0), xnn.RandintLike(None, minval=0, maxval=in_dim),
+        xnn.OneHot(num_classes=in_dim, axis=0))
 
 
 def AELoss(weight=1):
@@ -250,16 +285,11 @@ def AELoss(weight=1):
 
 
 def GenLoss(weight=1):
-    """Generator loss. LogCosh with zero."""
-    # outputs, pytree -> loss, scalar
+    """Generator loss. LogCosh between real and fake if real - fake > 0."""
+    # [real, fake] -> loss
     return xnn.Sequential(
-        # outputs -> [outputs] -> [outputs, outputs]
-        xnn.Pack(), xnn.Group([0, 0]),
-        # [outputs, outputs] -> [outputs, zeros]
-        xnn.Parallel(xnn.Identity(), xnn.ZerosLike()),
-        # [outputs, zeros] -> loss
-        xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
-        xnn.MulConst(weight))
+        xnn.Subtract(), xnn.ReLU(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(),
+        xnn.Mean(), xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
@@ -270,12 +300,14 @@ def DiscLoss(weight=1):
         xnn.Group([[0, 0], [1, 1]]),
         # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
+            # [real, real] -> [real, ones] -> real_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
+                xnn.Parallel(xnn.Identity(), xnn.OnesLike()), xnn.Subtract(),
+                xnn.LogCosh()),
             # [fake, fake] -> [fake, -ones] -> fake_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.LogCosh())),
+                xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.Subtract(),
+                xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
 
@@ -283,13 +315,10 @@ def DiscLoss(weight=1):
 def DiscLossSigmoid(weight=1):
     """Discriminator loss. LogCosh for real, logSigmoid for fake."""
     return xnn.Sequential(
-        # [real, fake] -> [[real, real], fake]
-        xnn.Group([[0, 0], 1]),
-        # [[real, real], fake] -> [real_loss, fake_loss]
+        # [[eal, fake] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            xnn.Sequential(xnn.Parallel(
-                xnn.Identity(), xnn.ZerosLike()), xnn.LogCosh()),
+            # real -> real_loss
+            xnn.Sequential(xnn.MulConst(-1), xnn.Softplus()),
             # fake -> fake_loss
             xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
