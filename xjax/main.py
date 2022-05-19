@@ -13,7 +13,7 @@ from xjax import xopt
 from data import Data
 from module import Encoder, Decoder, Discriminator
 from module import FeatureInjector, InputInjector, FeatureRandom, InputRandom
-from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
+from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid, DiscLossExpsquare
 from model import ATNNFAE, ATNIAE
 from optimizer import Momentum
 from evaluator import Evaluator
@@ -87,9 +87,9 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/symmetric',
                     'Checkpoint location.')
-flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
+flags.DEFINE_enum('main_disc_loss', 'expsquare', ['expsquare', 'logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
 flags.DEFINE_enum('main_model', 'atnnfae', ['atnnfae', 'atniae'],
                   'The type of model.')
@@ -133,6 +133,8 @@ def main(unused_argv):
         disc_loss = DiscLossSigmoid(FLAGS.disc_loss_weight)
     elif FLAGS.main_disc_loss == 'logcosh':
         disc_loss = DiscLoss(FLAGS.disc_loss_weight)
+    elif FLAGS.main_disc_loss == 'expsquare':
+        disc_loss = DiscLossExpsquare(FLAGS.disc_loss_weight)
     if FLAGS.main_model == 'atnnfae':
         injector = FeatureInjector(FLAGS.inj_beta)
         random = FeatureRandom()

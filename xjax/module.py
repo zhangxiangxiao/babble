@@ -323,3 +323,12 @@ def DiscLossSigmoid(weight=1):
             xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
+
+
+def DiscLossExpsquare(weight=1):
+    """Discriminator loss."""
+    # [real, fake] -> loss
+    return xnn.Sequential(
+        xnn.Subtract(), xnn.Square(), xnn.MulConst(-1), xnn.Exp(), xnn.Mean(),
+        xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
+
