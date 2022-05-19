@@ -288,8 +288,8 @@ def GenLoss(weight=1):
     """Generator loss. LogCosh between real and fake if real - fake > 0."""
     # [real, fake] -> loss
     return xnn.Sequential(
-        xnn.Subtract(), xnn.ReLU(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(),
-        xnn.Mean(), xnn.MulConst(weight))
+        xnn.Subtract(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
+        xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
