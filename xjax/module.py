@@ -285,7 +285,7 @@ def AELoss(weight=1):
 
 
 def GenLoss(weight=1):
-    """Generator loss. LogCosh between real and fake if real - fake > 0."""
+    """Generator loss."""
     # [real, fake] -> loss
     return xnn.Sequential(
         xnn.Subtract(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
