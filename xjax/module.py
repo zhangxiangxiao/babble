@@ -64,22 +64,18 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
             sigma=1e-6, transfer=Tanh):
     """Encoder."""
     layers = []
-    # inputs, shape=(i, l) -> inputs, shape=(l, i)
-    layers.append(xnn.Transpose())
     # inputs -> features
-    layers.append(ResLinear(
-        in_dim, feat_dim, feat_dim, transfer, w_init=jinit.normal(sigma),
-        b_init=jinit.normal(sigma)))
-    # features, shape=(l, f) -> features, shape=(f, l)
-    layers.append(xnn.Transpose())
-    for _ in range(depth):
+    layers.append(ResConv(
+        in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
+        w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    for _ in range(depth - 1):
         # features -> features
         layers.append(transfer())
         layers.append(ResConv(
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
     # features -> features.
-    for _ in range(level):
+    for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.MaxPool(pool))
         for _ in range(depth):
@@ -88,16 +84,20 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
             layers.append(ResConv(
                 feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
-    # features, shape=(f, l) -> features, shape=(l, f)
-    layers.append(xnn.Transpose())
-    # features, shape=(l, f) -> outputs, shape=(l, o)
+    # features, shape=(f, l) -> features, shape=(f, l/2)
+    layers.append(xnn.MaxPool(pool))
+    for _ in range(depth - 1):
+        # features -> features
+        layers.append(transfer())
+        layers.append(ResConv(
+            feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
+            w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    # features -> outputs
     layers.append(transfer())
-    layers.append(ResLinear(
-        feat_dim, feat_dim, out_dim, transfer, w_init=jinit.normal(sigma),
-        b_init=jinit.normal(sigma)))
-    # outputs, shape=(l, o) -> outputs, shape=(o, l)
-    layers.append(xnn.Transpose())
-    # features -> features
+    layers.append(ResConv(
+        feat_dim, feat_dim, out_dim, kernel, kernel, transfer=transfer,
+        w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    # outputs -> outputs
     layers.append(xnn.Standardize(axis=0))
     return xnn.Sequential(*layers)
 
@@ -108,22 +108,18 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
     layers = []
     # inputs -> inputs
     layers.append(xnn.Standardize(axis=0))
-    # inputs, shape=(i, l) -> inputs, shape=(l, i)
-    layers.append(xnn.Transpose())
     # inputs -> features
-    layers.append(ResLinear(
-        in_dim, feat_dim, feat_dim, transfer, w_init=jinit.normal(sigma),
-        b_init=jinit.normal(sigma)))
-    # features, shape=(l, f) -> features, shape=(f, l)
-    layers.append(xnn.Transpose())
-    for _ in range(depth):
+    layers.append(ResConv(
+        in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
+        w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    for _ in range(depth - 1):
         # features -> features
         layers.append(transfer())
         layers.append(ResConv(
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
     # features -> features
-    for _ in range(level):
+    for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l*2)
         layers.append(transfer())
         layers.append(ResDeconv(
@@ -136,15 +132,30 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
             layers.append(ResConv(
                 feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
-    # features, shape=(f, l) -> features, shape=(l, f)
-    layers.append(xnn.Transpose())
-    # features, shape=(l, f) -> outputs, shape=(l, o)
-    layers.append(transfer())
-    layers.append(ResLinear(
-        feat_dim, feat_dim, out_dim, transfer, w_init=jinit.normal(sigma),
-        b_init=jinit.normal(sigma)))
-    # outputs, shape=(l, o) -> outputs, shape=(o, l)
-    layers.append(xnn.Transpose())
+    # features, shape=(f, l) -> features, shape=(f, l*2)
+    if depth > 1:
+        layers.append(transfer())
+        layers.append(ResDeconv(
+            feat_dim, feat_dim, feat_dim, kernel, kernel, stride,
+            transfer=transfer, w_init=jinit.normal(sigma),
+            b_init=jinit.normal(sigma)))
+        for _ in range(depth - 2):
+            # features -> features
+            layers.append(transfer())
+            layers.append(ResConv(
+                feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
+                w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+        # features -> outputs
+        layers.append(transfer())
+        layers.append(ResConv(
+            feat_dim, feat_dim, out_dim, kernel, kernel, transfer=transfer,
+            w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    else:
+        layers.append(transfer())
+        layers.append(ResDeconv(
+            feat_dim, feat_dim, out_dim, kernel, kernel, stride,
+            transfer=transfer, w_init=jinit.normal(sigma),
+            b_init=jinit.normal(sigma)))
     return xnn.Sequential(*layers)
 
 
@@ -155,18 +166,9 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     layers.append(xnn.Sequential(
         # inputs -> inputs, as softmax on softplus.
         xnn.Softplus(), xnn.Softmax(axis=0),
-        # inputs, shape=(i, l) -> inputs, shape=(l, i)
-        xnn.Transpose(),
         # inputs -> features
-        ResLinear(in_dim, feat_dim, feat_dim, transfer,
-                  w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)),
-        # features, shape=(l, f) -> features, shape=(f, l)
-        xnn.Transpose(),
-        transfer(),
-        xnn.Dropout(dropout),
-        ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
-                transfer=transfer, w_init=jinit.normal(sigma),
-                b_init=jinit.normal(sigma))))
+        ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
+                w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
         # features -> features
         layers.append(xnn.Sequential(
@@ -175,7 +177,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
                     transfer=transfer, w_init=jinit.normal(sigma),
                     b_init=jinit.normal(sigma))))
     # features -> features.
-    for _ in range(level):
+    for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.Sequential(
             xnn.MaxPool(pool),
@@ -190,20 +192,37 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
                 ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
                         transfer=transfer, w_init=jinit.normal(sigma),
                         b_init=jinit.normal(sigma))))
-    # inputs -> [features0, features1, ...]
-    dense = xnn.DenseSequential(*layers)
-    # [features0, features1, ...] -> [outputs0, outputs1, ...]
-    shared = xnn.SharedParallel(xnn.Sequential(
-        # features, shape=(f, l) -> features, shape=(l, f)
-        xnn.Transpose(),
-        # features, shape=(l, f) -> outputs, shape=(l, o)
-        transfer(),
-        xnn.Dropout(dropout),
-        ResLinear(feat_dim, feat_dim, out_dim, transfer,
-                  w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)),
-        # outputs, shape=(l, o) -> outputs, shape=(o, l)
-        xnn.Transpose()))
-    return xnn.Sequential(dense, shared)
+    if depth > 1:
+        # features, shape=(f, l) -> features, shape=(f, l/2)
+        layers.append(xnn.Sequential(
+            xnn.MaxPool(pool),
+            transfer(),
+            ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
+                    transfer=transfer, w_init=jinit.normal(sigma),
+                    b_init=jinit.normal(sigma))))
+        for _ in range(depth - 2):
+            # features -> features
+            layers.append(xnn.Sequential(
+                transfer(),
+                ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
+                        transfer=transfer, w_init=jinit.normal(sigma),
+                        b_init=jinit.normal(sigma))))
+        # features -> outputs
+        layers.append(xnn.Sequential(
+            transfer(),
+            ResConv(feat_dim, feat_dim, out_dim, kernel, kernel,
+                    transfer=transfer, w_init=jinit.normal(sigma),
+                    b_init=jinit.normal(sigma))))
+    else:
+        # features, shape=(f, l) -> features, shape=(f, l/2)
+        layers.append(xnn.Sequential(
+            xnn.MaxPool(pool),
+            transfer(),
+            ResConv(feat_dim, feat_dim, out_dim, kernel, kernel,
+                    transfer=transfer, w_init=jinit.normal(sigma),
+                    b_init=jinit.normal(sigma))))
+    # inputs -> [feature0, feature1, ..., outputs]
+    return xnn.DenseSequential(*layers)
 
 
 def FeatureInjector(beta=0.1):
