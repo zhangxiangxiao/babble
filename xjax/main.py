@@ -87,7 +87,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/softmax',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
@@ -176,7 +176,7 @@ def main(unused_argv):
             '-'.join(FLAGS.disc_pool), FLAGS.disc_dropout, FLAGS.disc_sigma,
             FLAGS.disc_transfer)
         + '_feat-{}'.format(FLAGS.inj_beta)
-        + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
+        + '_feat_softmax-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
         + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(
