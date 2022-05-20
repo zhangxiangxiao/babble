@@ -285,10 +285,11 @@ def AELoss(weight=1):
 
 
 def GenLoss(weight=1):
-    """Generator loss. LogCosh between real and fake."""
+    """Generator loss."""
     # [real, fake] -> loss
-    return xnn.Sequential(xnn.LogCosh(), xnn.Mean(), xnn.Stack(), xnn.Mean(),
-                          xnn.MulConst(weight))
+    return xnn.Sequential(
+        xnn.Subtract(), xnn.ReLU(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(),
+        xnn.Mean(), xnn.MulConst(weight))
 
 
 def DiscLoss(margin=1, weight=1):
@@ -299,11 +300,11 @@ def DiscLoss(margin=1, weight=1):
         xnn.Group([[0, 0], [1, 1]]),
         # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, ones] -> real_loss
+            # [real, real] -> [real, margin] -> real_loss
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(margin)),
                 xnn.LogCosh()),
-            # [fake, fake] -> [fake, -ones] -> fake_loss
+            # [fake, fake] -> [fake, -margin] -> fake_loss
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-margin)),
                 xnn.LogCosh())),
