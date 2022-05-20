@@ -153,8 +153,6 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     """Discriminator that is dense."""
     layers = []
     layers.append(xnn.Sequential(
-        # inputs -> inputs
-        xnn.Softmax(axis=0),
         # inputs, shape=(i, l) -> inputs, shape=(l, i)
         xnn.Transpose(),
         # inputs -> features
