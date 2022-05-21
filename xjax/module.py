@@ -303,11 +303,11 @@ def DiscLoss(margin=1, weight=1):
             # [real, real] -> [real, margin] -> real_loss
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(margin)),
-                xnn.LogCosh()),
+                xnn.Subtract(), xnn.LogCosh()),
             # [fake, fake] -> [fake, -margin] -> fake_loss
             xnn.Sequential(
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-margin)),
-                xnn.LogCosh())),
+                xnn.Subtract(), xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
         xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
 
