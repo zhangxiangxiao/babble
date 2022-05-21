@@ -332,16 +332,16 @@ def GenLoss(weight=1):
 
 
 def DiscLoss(weight=1):
-    """Discriminator loss. LogCosh with zero for real, negative one for fake."""
+    """Discriminator loss."""
     # [real, fake] -> loss
     return xnn.Sequential(
         # [real, fake] -> [[real, real], [fake, fake]]
         xnn.Group([[0, 0], [1, 1]]),
         # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
+            # [real, real] -> [real, ones] -> real_loss
             xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.Subtract(),
+                xnn.Parallel(xnn.Identity(), xnn.OnesLike()), xnn.Subtract(),
                 xnn.LogCosh()),
             # [fake, fake] -> [fake, -ones] -> fake_loss
             xnn.Sequential(
@@ -355,12 +355,10 @@ def DiscLoss(weight=1):
 def DiscLossSigmoid(weight=1):
     """Discriminator loss. LogCosh for real, logSigmoid for fake."""
     return xnn.Sequential(
-        # [[eal, fake] -> [real_loss, fake_loss]
+        # [real, fake] -> [real_loss, fake_loss]
         xnn.Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            xnn.Sequential(
-                xnn.Parallel(xnn.Identity(), xnn.ZerosLike()), xnn.Subtract(),
-                xnn.LogCosh()),
+            # real -> real_loss
+            xnn.Sequential(xnn.MulConst(-1), xnn.Softplus()),
             # fake -> fake_loss
             xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
