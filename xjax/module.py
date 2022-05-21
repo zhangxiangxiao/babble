@@ -68,12 +68,14 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
     layers.append(ResConv(
         in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
         w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    layers.append(xnn.Standardize(axis=0))
     for _ in range(depth - 1):
         # features -> features
         layers.append(transfer())
         layers.append(ResConv(
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+        layers.append(xnn.Standardize(axis=0))
     # features -> features.
     for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l/2)
@@ -84,6 +86,7 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
             layers.append(ResConv(
                 feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+            layers.append(xnn.Standardize(axis=0))
     # features, shape=(f, l) -> features, shape=(f, l/2)
     layers.append(xnn.MaxPool(pool))
     for _ in range(depth - 1):
@@ -92,12 +95,12 @@ def Encoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), pool=(2,),
         layers.append(ResConv(
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+        layers.append(xnn.Standardize(axis=0))
     # features -> outputs
     layers.append(transfer())
     layers.append(ResConv(
         feat_dim, feat_dim, out_dim, kernel, kernel, transfer=transfer,
         w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
-    # outputs -> outputs
     layers.append(xnn.Standardize(axis=0))
     return xnn.Sequential(*layers)
 
@@ -112,12 +115,14 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
     layers.append(ResConv(
         in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
         w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+    layers.append(xnn.Standardize(axis=0))
     for _ in range(depth - 1):
         # features -> features
         layers.append(transfer())
         layers.append(ResConv(
             feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
             w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+        layers.append(xnn.Standardize(axis=0))
     # features -> features
     for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l*2)
@@ -126,12 +131,14 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
             feat_dim, feat_dim, feat_dim, kernel, kernel, stride,
             transfer=transfer, w_init=jinit.normal(sigma),
             b_init=jinit.normal(sigma)))
+        layers.append(xnn.Standardize(axis=0))
         for _ in range(depth - 1):
             # features -> features
             layers.append(transfer())
             layers.append(ResConv(
                 feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+            layers.append(xnn.Standardize(axis=0))
     # features, shape=(f, l) -> features, shape=(f, l*2)
     if depth > 1:
         layers.append(transfer())
@@ -139,12 +146,14 @@ def Decoder(level, depth, in_dim, feat_dim, out_dim, kernel=(3,), stride=(2,),
             feat_dim, feat_dim, feat_dim, kernel, kernel, stride,
             transfer=transfer, w_init=jinit.normal(sigma),
             b_init=jinit.normal(sigma)))
+        layers.append(xnn.Standardize(axis=0))
         for _ in range(depth - 2):
             # features -> features
             layers.append(transfer())
             layers.append(ResConv(
                 feat_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma)))
+            layers.append(xnn.Standardize(axis=0))
         # features -> outputs
         layers.append(transfer())
         layers.append(ResConv(
@@ -172,6 +181,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     for _ in range(depth - 1):
         # features -> features
         layers.append(xnn.Sequential(
+            xnn.Standardize(axis=0),
             Dropout(dropout),
             transfer(),
             ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
@@ -181,6 +191,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     for _ in range(level - 1):
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.Sequential(
+            xnn.Standardize(axis=0),
             Dropout(dropout),
             xnn.MaxPool(pool),
             transfer(),
@@ -190,6 +201,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         for _ in range(depth - 1):
             # features -> features
             layers.append(xnn.Sequential(
+                xnn.Standardize(axis=0),
                 Dropout(dropout),
                 transfer(),
                 ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
@@ -198,6 +210,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     if depth > 1:
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.Sequential(
+            xnn.Standardize(axis=0),
             Dropout(dropout),
             xnn.MaxPool(pool),
             transfer(),
@@ -207,6 +220,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
         for _ in range(depth - 2):
             # features -> features
             layers.append(xnn.Sequential(
+                xnn.Standardize(axis=0),
                 Dropout(dropout),
                 transfer(),
                 ResConv(feat_dim, feat_dim, feat_dim, kernel, kernel,
@@ -214,6 +228,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
                         b_init=jinit.normal(sigma))))
         # features -> outputs
         layers.append(xnn.Sequential(
+            xnn.Standardize(axis=0),
             Dropout(dropout),
             transfer(),
             ResConv(feat_dim, feat_dim, out_dim, kernel, kernel,
@@ -222,6 +237,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     else:
         # features, shape=(f, l) -> features, shape=(f, l/2)
         layers.append(xnn.Sequential(
+            xnn.Standardize(axis=0),
             Dropout(dropout),
             xnn.MaxPool(pool),
             transfer(),

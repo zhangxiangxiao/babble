@@ -41,7 +41,7 @@ flags.DEFINE_integer('enc_output', 256, 'Encoder output dimension.')
 flags.DEFINE_list('enc_kernel', '3', 'Encoder kernel size.')
 flags.DEFINE_list('enc_pool', '2', 'Encoder pooling size.')
 flags.DEFINE_float('enc_sigma', 0.000001, 'Encoder initialization.')
-flags.DEFINE_enum('enc_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('enc_transfer', 'tanh', ['relu', 'tanh'],
                   'Encoder transfer function.')
 
 flags.DEFINE_integer('dec_level', 4, 'Decoder pooling levels.')
@@ -52,7 +52,7 @@ flags.DEFINE_integer('dec_output', 256, 'Decoder output dimension.')
 flags.DEFINE_list('dec_kernel', '3', 'Decoder kernel size.')
 flags.DEFINE_list('dec_stride', '2', 'Decoder stride size.')
 flags.DEFINE_float('dec_sigma', 0.000001, 'Decoder initialization.')
-flags.DEFINE_enum('dec_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('dec_transfer', 'tanh', ['relu', 'tanh'],
                   'Decoder transfer function.')
 
 flags.DEFINE_integer('disc_level', 4, 'Discriminator pooling levels.')
@@ -64,7 +64,7 @@ flags.DEFINE_list('disc_kernel', '3', 'Discriminator kernel size.')
 flags.DEFINE_list('disc_pool', '2', 'Discriminator pooling size.')
 flags.DEFINE_float('disc_dropout', 0.5, 'Discriminator dropout probability.')
 flags.DEFINE_float('disc_sigma', 0.000001, 'Discriminator initialization.')
-flags.DEFINE_enum('disc_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('disc_transfer', 'tanh', ['relu', 'tanh'],
                   'Discriminator transfer function.')
 
 flags.DEFINE_float('inj_beta', 0.1, 'Injector noise random level.')
@@ -87,7 +87,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/normalize',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
