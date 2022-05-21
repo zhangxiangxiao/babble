@@ -288,8 +288,8 @@ def GenLoss(weight=1):
     """Generator loss."""
     # [real, fake] -> loss
     return xnn.Sequential(
-        xnn.Subtract(), xnn.ReLU(), xnn.LogCosh(), xnn.Mean(), xnn.Stack(),
-        xnn.Mean(), xnn.MulConst(weight))
+        xnn.Subtract(), xnn.ReLU(), xnn.LogCosh(), xnn.Reshape(-1),
+        xnn.Concatenate(), xnn.Mean(), xnn.MulConst(weight))
 
 
 def DiscLoss(weight=1):
@@ -309,7 +309,8 @@ def DiscLoss(weight=1):
                 xnn.Parallel(xnn.Identity(), xnn.FullLike(-1)), xnn.Subtract(),
                 xnn.LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
-        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
+        xnn.Add(), xnn.Reshape(-1), xnn.Concatenate(), xnn.Mean(),
+        xnn.MulConst(weight))
 
 
 def DiscLossSigmoid(weight=1):
@@ -322,4 +323,5 @@ def DiscLossSigmoid(weight=1):
             # fake -> fake_loss
             xnn.Softplus()),
         # [real_loss, fake_loss] -> real_loss + fake_loss
-        xnn.Add(), xnn.Mean(), xnn.Stack(), xnn.Mean(), xnn.MulConst(weight))
+        xnn.Add(), xnn.Reshape(-1), xnn.Concatenate(), xnn.Mean(),
+        xnn.MulConst(weight))
