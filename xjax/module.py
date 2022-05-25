@@ -165,7 +165,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     layers = []
     layers.append(xnn.Sequential(
         # inputs -> features
-        xnn.Softplus(), xnn.Softmax(axis=0),
+        xnn.Sigmax(axis=0),
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
@@ -291,17 +291,14 @@ def InputRandom(in_dim):
 
 
 def AELoss(weight=1):
-    """Auto-Encoder loss. The loss is log-softmax on softplus, defined as
-    Prob(i) = (1 + exp(y_i)) / sum_j(1 + exp(y_j))
-    """
+    """Auto-Encoder loss."""
     # [outputs, targets, weights] -> loss
     return xnn.Sequential(
-        # [outputs, targets, weights] -> [neglogsoftmax, targets, weights]
+        # [outputs, targets, weights] -> [neglogloss, targets, weights]
         xnn.Parallel(
-            xnn.Sequential(
-                xnn.Softplus(), xnn.LogSoftmax(axis=0), xnn.MulConst(-1)),
+            xnn.Sequential(xnn.LogSigmax(axis=0), xnn.MulConst(-1)),
             xnn.Identity(), xnn.Identity()),
-        # [neglogsoftmax, targets, weights] -> [loss, weights]
+        # [neglogloss, targets, weights] -> [loss, weights]
         xnn.Group([[0, 1], 2]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
         # [loss, weights] -> [[loss, weights], weights] -> [loss, weights]
         xnn.Group([[0, 1], 1]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
