@@ -165,7 +165,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     layers = []
     layers.append(xnn.Sequential(
         # inputs -> features
-        xnn.Softmax(axis=0),
+        xnn.Softplus(), xnn.Softmax(axis=0),
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
@@ -298,7 +298,8 @@ def AELoss(weight=1):
     return xnn.Sequential(
         # [outputs, targets, weights] -> [neglogsoftmax, targets, weights]
         xnn.Parallel(
-            xnn.Sequential(xnn.LogSoftmax(axis=0), xnn.MulConst(-1)),
+            xnn.Sequential(
+                xnn.Softplus(), xnn.LogSoftmax(axis=0), xnn.MulConst(-1)),
             xnn.Identity(), xnn.Identity()),
         # [neglogsoftmax, targets, weights] -> [loss, weights]
         xnn.Group([[0, 1], 2]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
