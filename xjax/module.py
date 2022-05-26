@@ -291,9 +291,7 @@ def InputRandom(in_dim):
 
 
 def AELoss(weight=1):
-    """Auto-Encoder loss. The loss is log-softmax on softplus, defined as
-    Prob(i) = (1 + exp(y_i)) / sum_j(1 + exp(y_j))
-    """
+    """Auto-Encoder loss."""
     # [outputs, targets, weights] -> loss
     return xnn.Sequential(
         # [outputs, targets, weights] -> [[outputs, targets], weights]
@@ -314,8 +312,11 @@ def AELoss(weight=1):
                             xnn.Identity()),
                         # [logsig, targets] -> [[logsig, targets], targets]
                         xnn.Group([[0, 1], 1]),
-                        # [[logsig, targets], targets] -> [loss, tar_sum] -> loss
-                        xnn.Parallel(xnn.Multiply(), xnn.Sum()), xnn.Divide()),
+                        # [[logsig, targets], targets] -> [loss, tar_sum]
+                        xnn.Parallel(xnn.Multiply(),
+                                     xnn.Sum(axis=0, keepdims=True)),
+                        # [loss, tar_sum] -> loss
+                        xnn.Divide()),
                     # [outputs, targets -> neg_loss
                     xnn.Sequential(
                         # [outputs, targets] -> [logsig, targets]
@@ -324,8 +325,11 @@ def AELoss(weight=1):
                             xnn.Sequential(xnn.MulConst(-1), xnn.AddConst(1))),
                         # [logsig, targets] -> [[logsig, targets], targets]
                         xnn.Group([[0, 1], 1]),
-                        # [[logsig, targets], targets] -> [loss, tar_sum] -> loss
-                        xnn.Parallel(xnn.Multiply(), xnn.Sum()), xnn.Divide())),
+                        # [[logsig, targets], targets] -> [loss, tar_sum]
+                        xnn.Parallel(xnn.Multiply(),
+                                     xnn.Sum(axis=0, keepdims=True)),
+                        # [loss, tar_sum] -> loss
+                        xnn.Divide())),
                 # [pos_loss, neg_loss] -> loss
                 xnn.Add()),
             # weights -> weights
