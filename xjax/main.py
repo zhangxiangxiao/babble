@@ -176,7 +176,7 @@ def main(unused_argv):
             '-'.join(FLAGS.disc_pool), FLAGS.disc_dropout, FLAGS.disc_sigma,
             FLAGS.disc_transfer)
         + '_feat-{}'.format(FLAGS.inj_beta)
-        + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
+        + '_feat_sigmoid-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
         + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(

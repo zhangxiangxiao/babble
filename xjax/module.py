@@ -165,7 +165,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     layers = []
     layers.append(xnn.Sequential(
         # inputs -> features
-        xnn.Softplus(), xnn.Softmax(axis=0),
+        xnn.Sigmoid(),
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
@@ -296,17 +296,42 @@ def AELoss(weight=1):
     """
     # [outputs, targets, weights] -> loss
     return xnn.Sequential(
-        # [outputs, targets, weights] -> [neglogsoftmax, targets, weights]
+        # [outputs, targets, weights] -> [[outputs, targets], weights]
+        xnn.Group([[0, 1], 2]),
+        # [[outputs, targets], weights] -> [loss, weights]
         xnn.Parallel(
+            # [outputs, targets] -> loss
             xnn.Sequential(
-                xnn.Softplus(), xnn.LogSoftmax(axis=0), xnn.MulConst(-1)),
-            xnn.Identity(), xnn.Identity()),
-        # [neglogsoftmax, targets, weights] -> [loss, weights]
-        xnn.Group([[0, 1], 2]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
-        # [loss, weights] -> [[loss, weights], weights] -> [loss, weights]
-        xnn.Group([[0, 1], 1]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
-        # [loss, weights] -> [loss_sum, weights_sum] -> loss_mean
-        xnn.Parallel(xnn.Sum(), xnn.Sum()), xnn.Divide(), xnn.MulConst(weight))
+                # [outputs, targets] -> [[outputs, targets], [outputs, targets]]
+                xnn.Group([[0, 1], [0, 1]]),
+                # [[outputs, targets], [outputs, targets]] -> [pos_loss, neg_loss]
+                xnn.Parallel(
+                    # [outputs, targets] -> pos_loss
+                    xnn.Sequential(
+                        # [outputs, targets] -> [logsig, targets]
+                        xnn.Parallel(
+                            xnn.Sequential(xnn.LogSigmoid(), xnn.MulConst(-1)),
+                            xnn.Identity()),
+                        # [logsig, targets] -> [[logsig, targets], targets]
+                        xnn.Group([[0, 1], 1]),
+                        # [[logsig, targets], targets] -> [loss, tar_sum] -> loss
+                        xnn.Parallel(xnn.Multiply(), xnn.Sum()), xnn.Divide()),
+                    # [outputs, targets -> neg_loss
+                    xnn.Sequential(
+                        # [outputs, targets] -> [logsig, targets]
+                        xnn.Parallel(
+                            xnn.Softplus(),
+                            xnn.Sequential(xnn.MulConst(-1), xnn.AddConst(1))),
+                        # [logsig, targets] -> [[logsig, targets], targets]
+                        xnn.Group([[0, 1], 1]),
+                        # [[logsig, targets], targets] -> [loss, tar_sum] -> loss
+                        xnn.Parallel(xnn.Multiply(), xnn.Sum()), xnn.Divide())),
+                # [pos_loss, neg_loss] -> loss
+                xnn.Add()),
+            # weights -> weights
+            xnn.Identity()),
+        # [loss, weights] -> loss
+        xnn.Multiply(), xnn.Sum())
 
 
 def GenLoss(weight=1):
