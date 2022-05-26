@@ -45,10 +45,8 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
     def log(msg, step, inputs, net_outputs, loss_outputs, eval_outputs,
             total_loss_outputs, total_eval_outputs):
         logging.info(
-            '%s step = %d, len = %d, ae_loss = (%g, %g, %g), '
-            'gen_loss= (%g, %g), disc_loss = (%g, %g), dec_eval = (%g, %g)',
-            msg, step, inputs[0].shape[-1],
-            jnp.mean(loss_outputs[0])/jnp.sum(inputs[1])*inputs[1].shape[0],
+            '%s step = %d, ae_loss = (%g, %g), gen_loss= (%g, %g), '
+            'disc_loss = (%g, %g), dec_eval = (%g, %g)', msg, step,
             jnp.mean(loss_outputs[0]), jnp.mean(total_loss_outputs[0]),
             jnp.mean(loss_outputs[1]), jnp.mean(total_loss_outputs[1]),
             jnp.mean(loss_outputs[2]), jnp.mean(total_loss_outputs[2]),
