@@ -27,7 +27,7 @@ flags.DEFINE_string('data_file_train', 'data/obama/train.h5',
                     'Train data file.')
 flags.DEFINE_string('data_file_valid', 'data/obama/valid.h5',
                     'Valid data file.')
-flags.DEFINE_integer('data_batch', 16, 'Data batch size for maximum length.')
+flags.DEFINE_integer('data_batch', 4, 'Data batch size for maximum length.')
 flags.DEFINE_integer('data_min', 16, 'Data minimum length.')
 flags.DEFINE_integer('data_max', 256, 'Data maximum length.')
 flags.DEFINE_boolean('data_cache', True, 'Data cache.')
