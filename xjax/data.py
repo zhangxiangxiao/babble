@@ -55,7 +55,7 @@ class Data:
             upper_length = self.min_len
             lower_length = 1
             if upper_length < self.length.shape[0]:
-                upper_index = self.length[upper_length - 1]
+                upper_index = self.length[upper_length]
             else:
                 # min_len is larger than the maximum length in data.
                 upper_index = self.index.shape[0]
@@ -63,11 +63,11 @@ class Data:
         else:
             lower_length = int(math.pow(2, math.log2(upper_length) - 1))
             if upper_length < self.length.shape[0]:
-                upper_index = self.length[upper_length - 1]
+                upper_index = self.length[upper_length]
             else:
                 # upper_length is larger than the maximum length in data.
                 upper_index = self.index.shape[0]
-            upper_index = self.length[upper_length - 1]
+            upper_index = self.length[upper_length]
             lower_index = self.length[lower_length - 1]
         # Create batch bytes and batch length
         inputs_batch = int(self.batch * self.max_len / upper_length)
