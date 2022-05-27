@@ -313,8 +313,8 @@ def AELoss(weight=1):
                         # [logsig, targets] -> [[logsig, targets], targets]
                         xnn.Group([[0, 1], 1]),
                         # [[logsig, targets], targets] -> [loss, tar_sum]
-                        xnn.Parallel(xnn.Multiply(),
-                                     xnn.Sum(axis=0, keepdims=True)),
+                        xnn.Parallel(xnn.Sequential(
+                            xnn.Multiply(), xnn.Sum(axis=0)), xnn.Sum(axis=0)),
                         # [loss, tar_sum] -> loss
                         xnn.Divide()),
                     # [outputs, targets -> neg_loss
@@ -326,8 +326,8 @@ def AELoss(weight=1):
                         # [logsig, targets] -> [[logsig, targets], targets]
                         xnn.Group([[0, 1], 1]),
                         # [[logsig, targets], targets] -> [loss, tar_sum]
-                        xnn.Parallel(xnn.Multiply(),
-                                     xnn.Sum(axis=0, keepdims=True)),
+                        xnn.Parallel(xnn.Sequential(
+                            xnn.Multiply(), xnn.Sum(axis=0)), xnn.Sum(axis=0)),
                         # [loss, tar_sum] -> loss
                         xnn.Divide())),
                 # [pos_loss, neg_loss] -> loss

@@ -42,8 +42,7 @@ class Data:
 
     def get_batch(self):
         # Get one sample
-        sample_index = random.randrange(
-            self.length[self.min_len - 1], self.index.shape[0])
+        sample_index = random.randrange(self.index.shape[0])
         # Calcuate the lower and upper lengths and indices.
         upper_length = int(math.pow(
             2, math.ceil(math.log2(self.index[sample_index, 1]))))
