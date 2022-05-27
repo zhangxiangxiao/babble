@@ -334,10 +334,8 @@ def AELoss(weight=1):
                 xnn.Add()),
             # weights -> weights
             xnn.Identity()),
-        # [loss, weights] -> [[loss, weights], weights] -> [loss, weights]
-        xnn.Group([[0, 1], 1]), xnn.Parallel(xnn.Multiply(), xnn.Identity()),
-        # [loss, weights] -> [loss_sum, weights_sum] -> loss_mean
-        xnn.Parallel(xnn.Sum(), xnn.Sum()), xnn.Divide(), xnn.MulConst(weight))
+        # [loss, weights] -> loss
+        xnn.Multiply(), xnn.Mean(), xnn.MulConst(weight))
 
 
 def GenLoss(weight=1):

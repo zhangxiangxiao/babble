@@ -28,7 +28,6 @@ flags.DEFINE_string('data_file_train', 'data/obama/train.h5',
 flags.DEFINE_string('data_file_valid', 'data/obama/valid.h5',
                     'Valid data file.')
 flags.DEFINE_integer('data_batch', 16, 'Data batch size.')
-flags.DEFINE_integer('data_step', 16, 'Data step size.')
 flags.DEFINE_integer('data_min', 1, 'Data minimum length.')
 flags.DEFINE_integer('data_max', 256, 'Data maximum length.')
 flags.DEFINE_boolean('data_cache', True, 'Data cache.')
@@ -87,7 +86,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/batch',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
@@ -105,11 +104,11 @@ def get_transfer(name):
 def main(unused_argv):
     logging.get_absl_handler().setFormatter(None)
     logging.info('Load train data from %s', FLAGS.data_file_train)
-    data_train = Data(FLAGS.data_file_train, FLAGS.data_batch, FLAGS.data_step,
-                      FLAGS.data_min, FLAGS.data_max, FLAGS.data_cache)
+    data_train = Data(FLAGS.data_file_train, FLAGS.data_batch, FLAGS.data_min,
+                      FLAGS.data_max, FLAGS.data_cache)
     logging.info('Load valid data from %s', FLAGS.data_file_valid)
-    data_valid = Data(FLAGS.data_file_valid, FLAGS.data_batch, FLAGS.data_step,
-                      FLAGS.data_min, FLAGS.data_max, FLAGS.data_cache)
+    data_valid = Data(FLAGS.data_file_valid, FLAGS.data_batch, FLAGS.data_min,
+                      FLAGS.data_max, FLAGS.data_cache)
     enc_kernel = tuple(int(k) for k in FLAGS.enc_kernel)
     enc_pool = tuple(int(p) for p in FLAGS.enc_pool)
     encoder = Encoder(FLAGS.enc_level, FLAGS.enc_depth, FLAGS.enc_input,
@@ -138,27 +137,29 @@ def main(unused_argv):
         random = FeatureRandom()
         model = xmod.jit(xmod.vmap(ATNNFAE(
             encoder, decoder, discriminator, injector, random, ae_loss,
-            gen_loss, disc_loss), FLAGS.data_batch))
+            gen_loss, disc_loss)))
         enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(enc_opt, dec_opt, disc_opt)))
+        optimizer = xopt.jit(xopt.vmap(xopt.Container(
+            enc_opt, dec_opt, disc_opt)))
     elif FLAGS.main_model == 'atniae':
         injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
         random = InputRandom(FLAGS.enc_input)
         autoencoder = xnn.Sequential(encoder, decoder)
         model = xmod.jit(xmod.vmap(ATNIAE(
             autoencoder, discriminator, injector, random, ae_loss, gen_loss,
-            disc_loss), FLAGS.data_batch))
+            disc_loss)))
         autoencoder_opt = Momentum(autoencoder.params, FLAGS.opt_rate,
                                    FLAGS.opt_coeff, FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(autoencoder_opt, disc_opt)))
-    evaluator = xeval.jit(xeval.vmap(Evaluator(), FLAGS.data_batch))
+        optimizer = xopt.jit(xopt.vmap(xopt.Container(
+            autoencoder_opt, disc_opt)))
+    evaluator = xeval.jit(xeval.vmap(Evaluator()))
     learner = Learner(optimizer, model, None, evaluator)
     checkpoint = os.path.join(
         FLAGS.main_checkpoint,
@@ -181,8 +182,8 @@ def main(unused_argv):
         + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}'.format(
             FLAGS.opt_rate, FLAGS.opt_coeff, FLAGS.opt_decay)
-        + '_byte-{}-{}-{}-{}'.format(
-            FLAGS.data_batch, FLAGS.data_step, FLAGS.data_min, FLAGS.data_max))
+        + '_byte-{}-{}-{}'.format(
+            FLAGS.data_batch, FLAGS.data_min, FLAGS.data_max))
     run = Trainer(learner, data_train, data_valid, FLAGS.trainer_train_steps,
                   FLAGS.trainer_test_steps, FLAGS.trainer_epochs,
                   FLAGS.trainer_interval, checkpoint)
