@@ -9,9 +9,11 @@ import random
 
 
 class Data:
-    def __init__(self, filename, batch=16, min_len=4, max_len=256, cache=True):
+    def __init__(self, filename, batch=16, step=16, min_len=4, max_len=256,
+                 cache=True):
         self.filename = filename
         self.batch = batch
+        self.step = step
         self.min_len = min_len
         self.max_len = max_len
 
@@ -43,35 +45,22 @@ class Data:
     def get_batch(self):
         # Get one sample
         sample_index = random.randrange(self.index.shape[0])
-        # Calcuate the lower and upper lengths and indices.
-        upper_length = int(math.pow(
-            2, math.ceil(math.log2(self.index[sample_index, 1]))))
-        if upper_length > self.max_len:
-            upper_length = self.max_len
-            lower_length = int(math.pow(2, math.log2(self.max_len) - 1))
-            upper_index = self.index.shape[0]
-            lower_index = self.length[lower_length - 1]
-        elif upper_length < self.min_len:
-            upper_length = self.min_len
-            lower_length = 1
-            if upper_length < self.length.shape[0]:
-                upper_index = self.length[upper_length]
-            else:
-                # min_len is larger than the maximum length in data.
-                upper_index = self.index.shape[0]
-            lower_index = self.length[0]
+        # Calcuate the lower and upper index
+        lower_length = int(
+            (self.index[sample_index, 1] - 1) / self.step) * self.step + 1
+        upper_length = lower_length + self.step - 1
+        if lower_length > self.max_len:
+            lower_index = int(self.length[self.max_len])
+            upper_index = int(self.index.shape[0])
         else:
-            lower_length = int(math.pow(2, math.log2(upper_length) - 1))
+            lower_index = self.length[lower_length - 1]
             if upper_length < self.length.shape[0]:
                 upper_index = self.length[upper_length]
             else:
-                # upper_length is larger than the maximum length in data.
                 upper_index = self.index.shape[0]
-            upper_index = self.length[upper_length]
-            lower_index = self.length[lower_length - 1]
         # Create batch bytes and batch length
-        inputs_batch = int(self.batch * self.max_len / upper_length)
-        inputs_length = upper_length
+        inputs_length = min(upper_length, self.max_len)
+        inputs_batch = int(self.batch * self.max_len / inputs_length)
         inputs_bytes = numpy.zeros(
             shape=(inputs_batch, inputs_length), dtype='int64')
         inputs_weight = numpy.zeros(shape=(inputs_batch, inputs_length))

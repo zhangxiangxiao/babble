@@ -28,6 +28,7 @@ flags.DEFINE_string('data_file_train', 'data/obama/train.h5',
 flags.DEFINE_string('data_file_valid', 'data/obama/valid.h5',
                     'Valid data file.')
 flags.DEFINE_integer('data_batch', 4, 'Data batch size for maximum length.')
+flags.DEFINE_integer('data_step', 16, 'Data length step.')
 flags.DEFINE_integer('data_min', 16, 'Data minimum length.')
 flags.DEFINE_integer('data_max', 256, 'Data maximum length.')
 flags.DEFINE_boolean('data_cache', True, 'Data cache.')
@@ -104,11 +105,11 @@ def get_transfer(name):
 def main(unused_argv):
     logging.get_absl_handler().setFormatter(None)
     logging.info('Load train data from %s', FLAGS.data_file_train)
-    data_train = Data(FLAGS.data_file_train, FLAGS.data_batch, FLAGS.data_min,
-                      FLAGS.data_max, FLAGS.data_cache)
+    data_train = Data(FLAGS.data_file_train, FLAGS.data_batch, FLAGS.data_step,
+                      FLAGS.data_min, FLAGS.data_max, FLAGS.data_cache)
     logging.info('Load valid data from %s', FLAGS.data_file_valid)
-    data_valid = Data(FLAGS.data_file_valid, FLAGS.data_batch, FLAGS.data_min,
-                      FLAGS.data_max, FLAGS.data_cache)
+    data_valid = Data(FLAGS.data_file_valid, FLAGS.data_batch, FLAGS.data_step,
+                      FLAGS.data_min, FLAGS.data_max, FLAGS.data_cache)
     enc_kernel = tuple(int(k) for k in FLAGS.enc_kernel)
     enc_pool = tuple(int(p) for p in FLAGS.enc_pool)
     encoder = Encoder(FLAGS.enc_level, FLAGS.enc_depth, FLAGS.enc_input,
