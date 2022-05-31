@@ -165,7 +165,6 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     layers = []
     layers.append(xnn.Sequential(
         # inputs -> features
-        xnn.Sigmoid(),
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
     for _ in range(depth - 1):
