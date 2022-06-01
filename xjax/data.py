@@ -60,7 +60,7 @@ class Data:
                 upper_index = self.index.shape[0]
         # Create batch bytes and batch length
         inputs_length = min(upper_length, self.max_len)
-        inputs_batch = int(self.batch * self.max_len / inputs_length)
+        inputs_batch = self.batch
         inputs_bytes = numpy.zeros(
             shape=(inputs_batch, inputs_length), dtype='int64')
         inputs_weight = numpy.zeros(shape=(inputs_batch, inputs_length))

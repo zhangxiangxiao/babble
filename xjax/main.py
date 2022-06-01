@@ -27,7 +27,7 @@ flags.DEFINE_string('data_file_train', 'data/obama/train.h5',
                     'Train data file.')
 flags.DEFINE_string('data_file_valid', 'data/obama/valid.h5',
                     'Valid data file.')
-flags.DEFINE_integer('data_batch', 4, 'Data batch size for maximum length.')
+flags.DEFINE_integer('data_batch', 4, 'Data batch size.')
 flags.DEFINE_integer('data_step', 16, 'Data length step.')
 flags.DEFINE_integer('data_min', 16, 'Data minimum length.')
 flags.DEFINE_integer('data_max', 256, 'Data maximum length.')
@@ -87,7 +87,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/unbatch',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
