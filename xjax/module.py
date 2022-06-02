@@ -321,7 +321,7 @@ def GenLoss(weight=1):
             # [fake, fake] -> [fake, zeros] -> fake_loss
             Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh())),
         # [real_loss, fake_loss] -> real_loss + fake_loss
-        Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))
+        Add(), Mean(), Stack(), Mean(), MulConst(weight))
 
 
 def DiscLoss(weight=1):
