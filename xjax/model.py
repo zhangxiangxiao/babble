@@ -25,6 +25,9 @@ def ATNNFAE(enc, dec, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
       params: the initial parameters.
       states: the initial states.
     """
+    ae_loss = xnn.Sequential(ae_loss, xnn.Mean())
+    gen_loss = xnn.Sequential(gen_loss, xnn.Mean())
+    disc_loss = xnn.Sequential(disc_loss, xnn.Mean())
     initial_params = (enc[1], dec[1], disc[1])
     initial_states = (enc[2], dec[2], disc[2], inj[2], rnd[2], ae_loss[2],
                       gen_loss[2], disc_loss[2])
@@ -143,6 +146,9 @@ def ATNIAE(net, disc, inj, rnd, ae_loss, gen_loss, disc_loss):
       params: the initial parameters.
       states: the initial states.
     """
+    ae_loss = xnn.Sequential(ae_loss, xnn.Mean())
+    gen_loss = xnn.Sequential(gen_loss, xnn.Mean())
+    disc_loss = xnn.Sequential(disc_loss, xnn.Mean())
     initial_params = (net[1], disc[1])
     initial_states = (net[2], disc[2], inj[2], rnd[2], ae_loss[2], gen_loss[2],
                       disc_loss[2])

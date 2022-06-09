@@ -136,30 +136,29 @@ def main(unused_argv):
     if FLAGS.main_model == 'atnnfae':
         injector = FeatureInjector(FLAGS.inj_beta)
         random = FeatureRandom()
-        model = xmod.jit(xmod.vmap(ATNNFAE(
-            encoder, decoder, discriminator, injector, random, ae_loss,
-            gen_loss, disc_loss)))
+        model = xmod.jit(ATNNFAE(
+            encoder, decoder, discriminator, xnn.vmap(injector),
+            xnn.vmap(random), xnn.vmap(ae_loss), xnn.vmap(gen_loss),
+            xnn.vmap(disc_loss)))
         enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(
-            enc_opt, dec_opt, disc_opt)))
+        optimizer = xopt.jit(xopt.Container(enc_opt, dec_opt, disc_opt))
     elif FLAGS.main_model == 'atniae':
         injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
         random = InputRandom(FLAGS.enc_input)
         autoencoder = xnn.Sequential(encoder, decoder)
-        model = xmod.jit(xmod.vmap(ATNIAE(
-            autoencoder, discriminator, injector, random, ae_loss, gen_loss,
-            disc_loss)))
+        model = xmod.jit(ATNIAE(
+            autoencoder, discriminator, xnn.vmap(injector), xnn.vmap(random),
+            xnn.vmap(ae_loss), xnn.vmap(gen_loss), xnn.vmap(disc_loss)))
         autoencoder_opt = Momentum(autoencoder.params, FLAGS.opt_rate,
                                    FLAGS.opt_coeff, FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(
-            autoencoder_opt, disc_opt)))
+        optimizer = xopt.jit(xopt.Container(autoencoder_opt, disc_opt))
     evaluator = xeval.jit(xeval.vmap(Evaluator()))
     learner = Learner(optimizer, model, None, evaluator)
     checkpoint = os.path.join(
