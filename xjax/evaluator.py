@@ -11,4 +11,4 @@ def Evaluator():
         dec_outputs = jnp.transpose(net_outputs[0], (1, 0))
         dec_result, states = eval_func((None, targets), dec_outputs, states)
         return dec_result, states
-    return EvaluatorTuple(evaluate, initial_states)
+    return xeval.vmap(EvaluatorTuple(evaluate, initial_states))
