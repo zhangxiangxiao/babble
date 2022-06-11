@@ -75,7 +75,7 @@ flags.DEFINE_float('gen_loss_weight', 1, 'Generator loss weight.')
 
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
-flags.DEFINE_float('opt_rate', 0.01, 'Autoencoder learning rate.')
+flags.DEFINE_float('opt_rate', 0.001, 'Autoencoder learning rate.')
 flags.DEFINE_float('opt_coeff', 0.9, 'Autoencoder momentum coefficient.')
 flags.DEFINE_float('opt_decay', 0.00001, 'Autoencoder weight decay.')
 
