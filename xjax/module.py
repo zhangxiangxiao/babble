@@ -158,7 +158,6 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     """Discriminator that is dense."""
     layers = []
     layers.append(Sequential(
-        Sigmoid(),
         # inputs -> features
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
@@ -326,7 +325,7 @@ def GenLoss(weight=1):
                 # [fake, fake] -> [fake, zeros] -> fake_loss
                 Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh())),
             # [real_loss, fake_loss] -> real_loss + fake_loss
-            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+            Add(), Mean(), Stack(), Mean(), MulConst(weight))),
         Mean())
 
 
@@ -344,7 +343,7 @@ def DiscLoss(weight=1):
                 # [fake, fake] -> [fake, -ones] -> fake_loss
                 Sequential(Parallel(Identity(), FullLike(-1)), Subtract(), LogCosh())),
             # [real_loss, fake_loss] -> real_loss + fake_loss
-            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+            Add(), Mean(), Stack(), Mean(), MulConst(weight))),
         Mean())
 
 
@@ -355,5 +354,5 @@ def DiscLossSigmoid(weight=1):
             # [real, fake] -> [real_loss, fake_loss]
             Parallel(Sequential(MulConst(-1), Softplus()), Softplus()),
             # [real_loss, fake_loss] -> real_loss + fake_loss
-            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+            Add(), Mean(), Stack(), Mean(), MulConst(weight))),
         Mean())

@@ -87,7 +87,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/stack',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
