@@ -158,7 +158,7 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
     """Discriminator that is dense."""
     layers = []
     layers.append(Sequential(
-        Sigmoid(),
+        Tanh(),
         # inputs -> features
         ResConv(in_dim, feat_dim, feat_dim, kernel, kernel, transfer=transfer,
                 w_init=jinit.normal(sigma), b_init=jinit.normal(sigma))))
