@@ -217,18 +217,18 @@ def Discriminator(level, depth, in_dim, feat_dim, out_dim, kernel=(3,),
 
 def FeatureInjector(beta=0.1):
     """Noise injector."""
-    return Sequential(
+    return vmap(Sequential(
         # inputs -> [inputs] -> [inputs, inputs]
         Pack(), Group([0, 0]),
         # [inputs, inputs] -> [inputs, noise]
         Parallel(Identity(), Sequential(NormalLike(), MulConst(beta))),
         # [inputs, noise] -> inputs + noise
-        Add())
+        Add()))
 
 
 def InputInjector(in_dim, beta=0.1):
     """Noise injector to discrete inputs."""
-    return Sequential(
+    return vmap(Sequential(
         # inputs -> [inputs] -> [inputs, inputs, inputs]
         Pack(), Group([0, 0, 0]),
         # [inputs, inputs] -> [inputs, noise, factor]
@@ -253,98 +253,107 @@ def InputInjector(in_dim, beta=0.1):
             # [noise, factor] -> noise
             Multiply()),
         # [inputs, noise] -> inputs + noise
-        Add())
+        Add()))
 
 
 def FeatureRandom():
     """Random number generator."""
-    return NormalLike()
+    return vmap(NormalLike())
 
 
 def InputRandom(in_dim):
     """Random input generator."""
-    return Sequential(Mean(axis=0), RandintLike(None, minval=0, maxval=in_dim),
-                      OneHot(num_classes=in_dim, axis=0))
+    return vmap(Sequential(
+        Mean(axis=0), RandintLike(None, minval=0, maxval=in_dim),
+        OneHot(num_classes=in_dim, axis=0)))
 
 
 def AELoss(weight=1):
     """Auto-Encoder loss."""
     # [outputs, targets, weights] -> loss
     return Sequential(
-        # [outputs, targets, weights] -> [[outputs, targets], weights]
-        Group([[0, 1], 2]),
-        # [[outputs, targets], weights] -> [loss, weights]
-        Parallel(
-            # [outputs, targets] -> loss
-            Sequential(
-                # [outputs, targets] -> [[outputs, targets], [outputs, targets]]
-                Group([[0, 1], [0, 1]]),
-                # [[outputs, targets], [outputs, targets]] -> [pos_loss, neg_loss]
-                Parallel(
-                    # [outputs, targets] -> pos_loss
-                    Sequential(
-                        # [outputs, targets] -> [logsig, targets]
-                        Parallel(Sequential(LogSigmoid(), MulConst(-1)), Identity()),
-                        # [logsig, targets] -> [[logsig, targets], targets]
-                        Group([[0, 1], 1]),
-                        # [[logsig, targets], targets] -> [loss, tar_sum]
-                        Parallel(Sequential(Multiply(), Sum(axis=0)), Sum(axis=0)),
-                        # [loss, tar_sum] -> loss
-                        Divide()),
-                    # [outputs, targets -> neg_loss
-                    Sequential(
-                        # [outputs, targets] -> [logsig, targets]
-                        Parallel(Softplus(), Sequential(MulConst(-1), AddConst(1))),
-                        # [logsig, targets] -> [[logsig, targets], targets]
-                        Group([[0, 1], 1]),
-                        # [[logsig, targets], targets] -> [loss, tar_sum]
-                        Parallel(Sequential(Multiply(), Sum(axis=0)), Sum(axis=0)),
-                        # [loss, tar_sum] -> loss
-                        Divide())),
-                # [pos_loss, neg_loss] -> loss
-                Add()),
-            # weights -> weights
-            Identity()),
-        # [loss, weights] -> loss
-        Multiply(), Mean(), MulConst(weight))
+        vmap(Sequential(
+            # [outputs, targets, weights] -> [[outputs, targets], weights]
+            Group([[0, 1], 2]),
+            # [[outputs, targets], weights] -> [loss, weights]
+            Parallel(
+                # [outputs, targets] -> loss
+                Sequential(
+                    # [outputs, targets] -> [[outputs, targets], [outputs, targets]]
+                    Group([[0, 1], [0, 1]]),
+                    # [[outputs, targets], [outputs, targets]] -> [pos_loss, neg_loss]
+                    Parallel(
+                        # [outputs, targets] -> pos_loss
+                        Sequential(
+                            # [outputs, targets] -> [logsig, targets]
+                            Parallel(Sequential(LogSigmoid(), MulConst(-1)), Identity()),
+                            # [logsig, targets] -> [[logsig, targets], targets]
+                            Group([[0, 1], 1]),
+                            # [[logsig, targets], targets] -> [loss, tar_sum]
+                            Parallel(Sequential(Multiply(), Sum(axis=0)), Sum(axis=0)),
+                            # [loss, tar_sum] -> loss
+                            Divide()),
+                        # [outputs, targets -> neg_loss
+                        Sequential(
+                            # [outputs, targets] -> [logsig, targets]
+                            Parallel(Softplus(), Sequential(MulConst(-1), AddConst(1))),
+                            # [logsig, targets] -> [[logsig, targets], targets]
+                            Group([[0, 1], 1]),
+                            # [[logsig, targets], targets] -> [loss, tar_sum]
+                            Parallel(Sequential(Multiply(), Sum(axis=0)), Sum(axis=0)),
+                            # [loss, tar_sum] -> loss
+                            Divide())),
+                    # [pos_loss, neg_loss] -> loss
+                    Add()),
+                # weights -> weights
+                Identity()),
+            # [loss, weights] -> loss
+            Multiply(), Mean(), MulConst(weight))),
+        Mean())
 
 
 def GenLoss(weight=1):
     """Generator loss."""
     # [real, fake] -> loss
     return Sequential(
-        # [real, fake] -> [[real, real], [fake, fake]]
-        Group([[0, 0], [1, 1]]),
-        # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
-        Parallel(
-            # [real, real] -> [real, zeros] -> real_loss
-            Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh()),
-            # [fake, fake] -> [fake, zeros] -> fake_loss
-            Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh())),
-        # [real_loss, fake_loss] -> real_loss + fake_loss
-        Add(), Mean(), Stack(), Mean(), MulConst(weight))
+        vmap(Sequential(
+            # [real, fake] -> [[real, real], [fake, fake]]
+            Group([[0, 0], [1, 1]]),
+            # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
+            Parallel(
+                # [real, real] -> [real, zeros] -> real_loss
+                Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh()),
+                # [fake, fake] -> [fake, zeros] -> fake_loss
+                Sequential(Parallel(Identity(), ZerosLike()), Subtract(), LogCosh())),
+            # [real_loss, fake_loss] -> real_loss + fake_loss
+            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+        Mean())
 
 
 def DiscLoss(weight=1):
     """Discriminator loss."""
     # [real, fake] -> loss
     return Sequential(
-        # [real, fake] -> [[real, real], [fake, fake]]
-        Group([[0, 0], [1, 1]]),
-        # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
-        Parallel(
-            # [real, real] -> [real, ones] -> real_loss
-            Sequential(Parallel(Identity(), OnesLike()), Subtract(), LogCosh()),
-            # [fake, fake] -> [fake, -ones] -> fake_loss
-            Sequential(Parallel(Identity(), FullLike(-1)), Subtract(), LogCosh())),
-        # [real_loss, fake_loss] -> real_loss + fake_loss
-        Add(), Mean(), Stack(), Mean(), MulConst(weight))
+        vmap(Sequential(
+            # [real, fake] -> [[real, real], [fake, fake]]
+            Group([[0, 0], [1, 1]]),
+            # [[real, real], [fake, fake]] -> [real_loss, fake_loss]
+            Parallel(
+                # [real, real] -> [real, ones] -> real_loss
+                Sequential(Parallel(Identity(), OnesLike()), Subtract(), LogCosh()),
+                # [fake, fake] -> [fake, -ones] -> fake_loss
+                Sequential(Parallel(Identity(), FullLike(-1)), Subtract(), LogCosh())),
+            # [real_loss, fake_loss] -> real_loss + fake_loss
+            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+        Mean())
 
 
 def DiscLossSigmoid(weight=1):
     """Discriminator loss. LogCosh for real, logSigmoid for fake."""
     return Sequential(
-        # [real, fake] -> [real_loss, fake_loss]
-        Parallel(Sequential(MulConst(-1), Softplus()), Softplus()),
-        # [real_loss, fake_loss] -> real_loss + fake_loss
-        Add(), Mean(), Stack(), Mean(), MulConst(weight))
+        vmap(Sequential(
+            # [real, fake] -> [real_loss, fake_loss]
+            Parallel(Sequential(MulConst(-1), Softplus()), Softplus()),
+            # [real_loss, fake_loss] -> real_loss + fake_loss
+            Add(), Reshape(-1), Concatenate(), Mean(), MulConst(weight))),
+        Mean())
