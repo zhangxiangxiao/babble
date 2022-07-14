@@ -3,12 +3,13 @@
 import h5py
 import jax.nn as jnn
 import jax.numpy as jnp
+import math
 import numpy
 import random
 
 
 class Data:
-    def __init__(self, filename, batch=16, step=16, min_len=1, max_len=256,
+    def __init__(self, filename, batch=16, step=16, min_len=4, max_len=256,
                  cache=True):
         self.filename = filename
         self.batch = batch
@@ -43,8 +44,7 @@ class Data:
 
     def get_batch(self):
         # Get one sample
-        sample_index = random.randrange(
-            self.length[self.min_len - 1], self.index.shape[0])
+        sample_index = random.randrange(self.index.shape[0])
         # Calcuate the lower and upper index
         lower_length = int(
             (self.index[sample_index, 1] - 1) / self.step) * self.step + 1
@@ -54,15 +54,16 @@ class Data:
             upper_index = int(self.index.shape[0])
         else:
             lower_index = self.length[lower_length - 1]
-            if upper_length >= self.length.shape[0]:
-                upper_index = self.index.shape[0]
+            if upper_length < self.length.shape[0]:
+                upper_index = self.length[upper_length]
             else:
-                upper_index = self.length[upper_length - 1]
+                upper_index = self.index.shape[0]
         # Create batch bytes and batch length
         inputs_length = min(upper_length, self.max_len)
-        inputs_bytes = numpy.full(
-            shape=(self.batch, inputs_length), fill_value=-1, dtype='int64')
-        inputs_weight = numpy.zeros(shape=(self.batch, inputs_length))
+        inputs_batch = int(self.batch * self.max_len / inputs_length)
+        inputs_bytes = numpy.zeros(
+            shape=(inputs_batch, inputs_length), dtype='int64')
+        inputs_weight = numpy.zeros(shape=(inputs_batch, inputs_length))
         # Copy the bytes for the first sample
         content_index = int(self.index[sample_index, 0])
         content_length = int(min(self.index[sample_index, 1], inputs_length))
@@ -70,16 +71,13 @@ class Data:
             content_index:(content_index + content_length)]
         inputs_weight[0, 0:content_length] = 1
         # Copy the bytes for the rest of the samples
-        for i in range(1, self.batch):
+        for i in range(1, inputs_batch):
             sample_index = random.randrange(lower_index, upper_index)
             content_index = int(self.index[sample_index, 0])
             content_length = int(min(
-                self.index[sample_index, 1], upper_length, self.max_len))
-            padding_length = min(
-                (int((content_length - 1) / self.step) + 1) * self.step,
-                inputs_length)
+                self.index[sample_index, 1], inputs_length))
             inputs_bytes[i, 0:content_length] = self.content[
                 content_index:(content_index + content_length)]
             inputs_weight[i, 0:content_length] = 1
-        inputs = jnp.transpose(jnn.one_hot(inputs_bytes, 256), (0, 2, 1))
-        return inputs, inputs_weight
+        inputs_onehot = jnp.transpose(jnn.one_hot(inputs_bytes, 256), (0, 2, 1))
+        return inputs_onehot, inputs_weight

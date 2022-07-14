@@ -27,9 +27,9 @@ flags.DEFINE_string('data_file_train', 'data/obama/train.h5',
                     'Train data file.')
 flags.DEFINE_string('data_file_valid', 'data/obama/valid.h5',
                     'Valid data file.')
-flags.DEFINE_integer('data_batch', 16, 'Data batch size.')
-flags.DEFINE_integer('data_step', 16, 'Data step size.')
-flags.DEFINE_integer('data_min', 1, 'Data minimum length.')
+flags.DEFINE_integer('data_batch', 4, 'Data batch size.')
+flags.DEFINE_integer('data_step', 16, 'Data length step.')
+flags.DEFINE_integer('data_min', 16, 'Data minimum length.')
 flags.DEFINE_integer('data_max', 256, 'Data maximum length.')
 flags.DEFINE_boolean('data_cache', True, 'Data cache.')
 
@@ -41,7 +41,7 @@ flags.DEFINE_integer('enc_output', 256, 'Encoder output dimension.')
 flags.DEFINE_list('enc_kernel', '3', 'Encoder kernel size.')
 flags.DEFINE_list('enc_pool', '2', 'Encoder pooling size.')
 flags.DEFINE_float('enc_sigma', 0.000001, 'Encoder initialization.')
-flags.DEFINE_enum('enc_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('enc_transfer', 'tanh', ['relu', 'tanh'],
                   'Encoder transfer function.')
 
 flags.DEFINE_integer('dec_level', 4, 'Decoder pooling levels.')
@@ -52,7 +52,7 @@ flags.DEFINE_integer('dec_output', 256, 'Decoder output dimension.')
 flags.DEFINE_list('dec_kernel', '3', 'Decoder kernel size.')
 flags.DEFINE_list('dec_stride', '2', 'Decoder stride size.')
 flags.DEFINE_float('dec_sigma', 0.000001, 'Decoder initialization.')
-flags.DEFINE_enum('dec_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('dec_transfer', 'tanh', ['relu', 'tanh'],
                   'Decoder transfer function.')
 
 flags.DEFINE_integer('disc_level', 4, 'Discriminator pooling levels.')
@@ -64,7 +64,7 @@ flags.DEFINE_list('disc_kernel', '3', 'Discriminator kernel size.')
 flags.DEFINE_list('disc_pool', '2', 'Discriminator pooling size.')
 flags.DEFINE_float('disc_dropout', 0.5, 'Discriminator dropout probability.')
 flags.DEFINE_float('disc_sigma', 0.000001, 'Discriminator initialization.')
-flags.DEFINE_enum('disc_transfer', 'relu', ['relu', 'tanh'],
+flags.DEFINE_enum('disc_transfer', 'tanh', ['relu', 'tanh'],
                   'Discriminator transfer function.')
 
 flags.DEFINE_float('inj_beta', 0.1, 'Injector noise random level.')
@@ -78,7 +78,8 @@ flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 flags.DEFINE_float('opt_rate', 0.01, 'Optimizer Learning rate.')
 flags.DEFINE_float('opt_coeff', 0.9, 'Optimizer momentum coefficient.')
 flags.DEFINE_float('opt_decay', 0.00001, 'Optimizer weight decay.')
-flags.DEFINE_float('opt_disc_decay', 0.01, 'Optimizer discriminator decay.')
+flags.DEFINE_float('opt_disc_decay', 0.01,
+                   'Optimizer discriminator weight decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
 # sample data. This definition is suitable if the dataset is too large and
@@ -137,31 +138,29 @@ def main(unused_argv):
     if FLAGS.main_model == 'atnnfae':
         injector = FeatureInjector(FLAGS.inj_beta)
         random = FeatureRandom()
-        model = xmod.jit(xmod.vmap(ATNNFAE(
-            encoder, decoder, discriminator, injector, random, ae_loss,
-            gen_loss, disc_loss), FLAGS.data_batch))
+        model = xmod.jit(ATNNFAE(
+            encoder, decoder, discriminator, injector,
+            random, ae_loss, gen_loss, disc_loss))
         enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_disc_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(
-            enc_opt, dec_opt, disc_opt)))
+        optimizer = xopt.jit(xopt.Container(enc_opt, dec_opt, disc_opt))
     elif FLAGS.main_model == 'atniae':
         injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
         random = InputRandom(FLAGS.enc_input)
         autoencoder = xnn.Sequential(encoder, decoder)
-        model = xmod.jit(xmod.vmap(ATNIAE(
-            autoencoder, discriminator, injector, random, ae_loss, gen_loss,
-            disc_loss), FLAGS.data_batch))
+        model = xmod.jit(ATNIAE(
+            autoencoder, discriminator, injector, random,
+            ae_loss, gen_loss, disc_loss))
         autoencoder_opt = Momentum(autoencoder.params, FLAGS.opt_rate,
                                    FLAGS.opt_coeff, FLAGS.opt_decay)
         disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
                             FLAGS.opt_coeff, FLAGS.opt_disc_decay)
-        optimizer = xopt.jit(xopt.vmap(xopt.Container(
-            autoencoder_opt, disc_opt)))
-    evaluator = xeval.jit(xeval.vmap(Evaluator(), FLAGS.data_batch))
+        optimizer = xopt.jit(xopt.Container(autoencoder_opt, disc_opt))
+    evaluator = xeval.jit(Evaluator())
     learner = Learner(optimizer, model, None, evaluator)
     checkpoint = os.path.join(
         FLAGS.main_checkpoint,
@@ -179,7 +178,7 @@ def main(unused_argv):
             '-'.join(FLAGS.disc_pool), FLAGS.disc_dropout, FLAGS.disc_sigma,
             FLAGS.disc_transfer)
         + '_feat-{}'.format(FLAGS.inj_beta)
-        + '_feat_plusmax-{}'.format(FLAGS.ae_loss_weight)
+        + '_feat_sigmoid-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
         + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
         + '_mom-{}-{}-{}-{}'.format(

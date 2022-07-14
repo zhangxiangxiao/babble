@@ -47,10 +47,9 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
         logging.info(
             '%s step = %d, ae_loss = (%g, %g), gen_loss= (%g, %g), '
             'disc_loss = (%g, %g), dec_eval = (%g, %g)', msg, step,
-            jnp.mean(loss_outputs[0]), jnp.mean(total_loss_outputs[0]),
-            jnp.mean(loss_outputs[1]), jnp.mean(total_loss_outputs[1]),
-            jnp.mean(loss_outputs[2]), jnp.mean(total_loss_outputs[2]),
-            jnp.mean(eval_outputs), jnp.mean(total_eval_outputs))
+            loss_outputs[0], total_loss_outputs[0], loss_outputs[1],
+            total_loss_outputs[1], loss_outputs[2], total_loss_outputs[2],
+            eval_outputs, total_eval_outputs)
         logging.info('   inputs = %s', array_to_string(jnp.argmax(
             inputs[0][0], axis=0)))
         logging.info('  decoded = %s', array_to_string(jnp.argmax(
@@ -98,12 +97,10 @@ def Trainer(learner, data_train, data_valid, train_steps, test_steps, epochs,
                 'Finish epoch = %d, ae_loss = (%g, %g, %g), '
                 'gen_loss = (%g, %g, %g), disc_loss = (%g, %g, %g), '
                 'dec_eval = (%g, %g, %g).', epoch,
-                jnp.mean(loss_train[0]), jnp.mean(loss_on_train[0]),
-                jnp.mean(loss_on_valid[0]), jnp.mean(loss_train[1]),
-                jnp.mean(loss_on_train[1]), jnp.mean(loss_on_valid[1]),
-                jnp.mean(loss_train[2]), jnp.mean(loss_on_train[2]),
-                jnp.mean(loss_on_valid[2]), jnp.mean(eval_train),
-                jnp.mean(eval_on_train), jnp.mean(eval_on_valid))
+                loss_train[0], loss_on_train[0], loss_on_valid[0],
+                loss_train[1], loss_on_train[1], loss_on_valid[1],
+                loss_train[2], loss_on_train[2], loss_on_valid[2], eval_train,
+                eval_on_train, eval_on_valid)
             logging.info('Save to %s', checkpoint)
             record.append((loss_train, eval_train, loss_on_train, eval_on_train,
                            loss_on_valid, eval_on_valid))
