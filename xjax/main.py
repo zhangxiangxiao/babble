@@ -71,27 +71,28 @@ flags.DEFINE_float('inj_beta', 0.1, 'Injector noise random level.')
 
 flags.DEFINE_float('ae_loss_weight', 1, 'Autoencoder loss weight.')
 
-flags.DEFINE_float('gen_loss_weight', 1, 'Generator loss weight.')
+flags.DEFINE_float('gen_loss_weight', 0.01, 'Generator loss weight.')
 
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
-flags.DEFINE_float('opt_rate', 0.001, 'Autoencoder learning rate.')
-flags.DEFINE_float('opt_coeff', 0.9, 'Autoencoder momentum coefficient.')
-flags.DEFINE_float('opt_decay', 0.00001, 'Autoencoder weight decay.')
+flags.DEFINE_float('opt_rate', 0.001, 'Optimizer learning rate.')
+flags.DEFINE_float('opt_coeff', 0.9, 'Optimizer momentum coefficient.')
+flags.DEFINE_float('opt_decay', 0.00001, 'Optimizer weight decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
 # sample data. This definition is suitable if the dataset is too large and
 # iterating over all of it is infeasible.
 flags.DEFINE_integer('trainer_train_steps', 100000, 'Train steps per epoch.')
 flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
-flags.DEFINE_integer('trainer_epochs', 1000, 'Number of epoches to run.')
-flags.DEFINE_integer('trainer_interval', 10, 'Interval for printing updates.')
+# Train (almost) forever?
+flags.DEFINE_integer('trainer_epochs', 100000, 'Number of epoches to run.')
+flags.DEFINE_integer('trainer_interval', 10, 'Time interval for printing updates.')
 
 flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
-flags.DEFINE_enum('main_model', 'atnnfae', ['atnnfae', 'atniae'],
+flags.DEFINE_enum('main_model', 'atniae', ['atnnfae', 'atniae'],
                   'The type of model.')
 
 
