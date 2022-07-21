@@ -1,7 +1,6 @@
 """Train a tokenizer using HuggingFace."""
 
 import h5py
-import numpy as np
 from absl import app
 from absl import flags
 from absl import logging
@@ -12,7 +11,6 @@ from tokenizers.trainers import BpeTrainer
 
 
 FLAGS = flags.FLAGS
-
 flags.DEFINE_string('input', 'data/tinyshakespeare/train.h5',
                     'Input HDF5 file.')
 flags.DEFINE_string('output', 'data/tinyshakespeare/bpe.json',
@@ -22,11 +20,11 @@ flags.DEFINE_integer('vocab_size', 65536, 'Vocubulary size.')
 flags.DEFINE_boolean('cache', False, 'Whether to cache the input in memory.')
 
 
-def initialize_tokenizer():
-    if FLAGS.model == 'bpe':
+def initialize_tokenizer(model, vocab_size):
+    if model == 'bpe':
         tokenizer = Tokenizer(BPE())
         tokenizer.normalizer = NFKC()
-        trainer = BpeTrainer(vocab_size=FLAGS.vocab_size,
+        trainer = BpeTrainer(vocab_size=vocab_size,
                              initial_alphabet=[chr(i) for i in range(256)],
                              show_progress=False)
         return tokenizer, trainer
@@ -39,13 +37,13 @@ def get_iterator(index, content):
         sample_bytes = content[content_index:(content_index + content_length)]
         sample_text = sample_bytes.astype('uint8').tobytes().decode(
             'utf-8', 'replace')
-        if i % 10000 == 0:
-            logging.info('Processing sample %d.', i)
+        if i % 100000 == 0:
+            logging.info('Processing sample %d/%d.', i, index.shape[0])
         yield sample_text
 
 
 def main(unused_argv):
-    tokenizer, trainer = initialize_tokenizer()
+    tokenizer, trainer = initialize_tokenizer(FLAGS.model, FLAGS.vocab_size)
     logging.info('Train a %s tokenizer.', FLAGS.model)
     logging.info('Load input from %s.', FLAGS.input)
     data_fd = h5py.File(FLAGS.input, 'r')
