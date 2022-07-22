@@ -24,9 +24,10 @@ def initialize_tokenizer(model, vocab_size):
     if model == 'bpe':
         tokenizer = Tokenizer(BPE())
         tokenizer.normalizer = NFKC()
-        trainer = BpeTrainer(vocab_size=vocab_size,
-                             initial_alphabet=[chr(i) for i in range(256)],
-                             show_progress=False)
+        trainer = BpeTrainer(
+            vocab_size=vocab_size, min_frequency=1000,
+            initial_alphabet=[chr(i) for i in range(256)],
+            show_progress=False)
         return tokenizer, trainer
 
 
