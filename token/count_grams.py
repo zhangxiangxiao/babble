@@ -12,7 +12,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('input', 'data/tinyshakespeare/train.h5',
                     'Input HDF5 file.')
 flags.DEFINE_string(
-    'output', 'data/tinyshakespeare/train_gram_count',
+    'output_prefix', 'data/tinyshakespeare/train_gram_count',
     'Output count file. Will add postfixes like .0.0, .0.1 etc.')
 flags.DEFINE_integer('max_gram_size', 16, 'Maximum byte gram size.')
 flags.DEFINE_integer('memory_limit', 17408, 'Limit on memory usage in MB '
@@ -52,7 +52,7 @@ def count_grams(master_queue, process_id, process_size, input_file,
             for j in range(len(sample_bytes)):
                 for k in range(max_gram_size):
                     if j + k < len(sample_bytes):
-                        sample_gram = sample_bytes[j:k+1]
+                        sample_gram = sample_bytes[j:j+k+1]
                         gram_count[sample_gram] = gram_count.get(
                             sample_gram, 0) + 1
             if sys.getsizeof(gram_count) > memory_limit:
@@ -72,7 +72,7 @@ def count_grams(master_queue, process_id, process_size, input_file,
                 with open(output_file, 'w') as output_fd:
                     for key in gram_count:
                         value = gram_count[key]
-                        output_fd.write('{}, {}\n'.format(key.hex(), value))
+                        output_fd.write('{} {}\n'.format(key.hex(), value))
                 gram_count = {}
                 gc.collect()
     master_queue.put({
@@ -92,7 +92,7 @@ def count_grams(master_queue, process_id, process_size, input_file,
         with open(output_file, 'w') as output_fd:
             for key in gram_count:
                 value = gram_count[key]
-                output_fd.write('{}, {}\n'.format(key.hex(), value))
+                output_fd.write('{} {}\n'.format(key.hex(), value))
         gram_count = {}
         gc.collect()
     master_queue.put({'rpc': 'exit', 'args': (process_id,), 'kwargs': {}})
@@ -108,8 +108,8 @@ def main(argv):
     processes = []
     for i in range(FLAGS.process_size):
         process = mp.Process(target=count_grams, args=(
-            master_queue, i, FLAGS.process_size, FLAGS.input, FLAGS.output,
-            FLAGS.max_gram_size, FLAGS.memory_limit))
+            master_queue, i, FLAGS.process_size, FLAGS.input,
+            FLAGS.output_prefix, FLAGS.max_gram_size, FLAGS.memory_limit))
         process.start()
         processes.append(process)
     process_count = FLAGS.process_size
