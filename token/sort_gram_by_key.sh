@@ -14,5 +14,8 @@ output_prefix=${2:-data/tinyshakespeare/train_gram_count_sorted.};
 
 for input_file in ${input_prefix}*; do
     output_file=${output_prefix}${input_file#${input_prefix}}
-    sort -k1,1 -o ${output_file} ${input_file} "${@:3}";
+    echo sort -k1,1 -o ${output_file} ${input_file} "${@:3}" >> /tmp/sort_gram_by_key_commands.txt;
 done;
+
+parallel -j8 < /tmp/sort_gram_by_key_commands.txt;
+rm /tmp/sort_gram_by_key_commands.txt;
