@@ -9,7 +9,7 @@
 set -x;
 set -e;
 
-input=${1:-data/tinyshakespeare/train_gram_count_pruned.txt};
-output=${2:-data/tinyshakespeare/train_vocab_byte_raw.txt};
+input=${1:-data/tinyshakespeare/train_gram_count_combined.txt};
+output=${2:-data/tinyshakespeare/train_vocab_byte_count.txt};
 
-awk '{print length($1), $0}' ${input} | sort -k3,3nr -k1,1nr "${@:3}" | cut -d ' ' -f 2- > ${output};
+awk '{print length($1), $0}' ${input} | sort -k3,3nr -k1,1n "${@:3}" | cut -d ' ' -f 2- > ${output};
