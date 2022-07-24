@@ -17,13 +17,17 @@ flags.DEFINE_string(
     'Output file.')
 
 
+# Set buffer size to increate file throughput.
+BUFFER_SIZE = 1024*1024
+
+
 def main(argv):
     logging.info('Load input from prefix %s.', FLAGS.input_prefix)
     input_files = glob.glob(FLAGS.input_prefix + '*')
     input_fds = []
     for input_file in input_files:
         logging.info('Open file %s.', input_file)
-        input_fds.append(open(input_file, 'r'))
+        input_fds.append(open(input_file, 'r', buffering=BUFFER_SIZE))
     pqueue = queue.PriorityQueue()
     # Initialize input keys and values
     for i in range(len(input_fds)):
