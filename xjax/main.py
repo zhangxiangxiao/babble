@@ -15,7 +15,7 @@ from module import Encoder, Decoder, Discriminator
 from module import FeatureInjector, InputInjector, FeatureRandom, InputRandom
 from module import AELoss, GenLoss, DiscLoss, DiscLossSigmoid
 from model import ATNNFAE, ATNIAE
-from optimizer import Momentum
+from optimizer import Momentum, InverseTimeSchedule
 from evaluator import Evaluator
 from learner import Learner
 from trainer import Trainer
@@ -75,9 +75,10 @@ flags.DEFINE_float('gen_loss_weight', 0.01, 'Generator loss weight.')
 
 flags.DEFINE_float('disc_loss_weight', 1, 'Discriminator loss weight.')
 
-flags.DEFINE_float('opt_rate', 0.001, 'Optimizer learning rate.')
+flags.DEFINE_float('opt_rate', 0.01, 'Optimizer learning rate.')
 flags.DEFINE_float('opt_coeff', 0.9, 'Optimizer momentum coefficient.')
 flags.DEFINE_float('opt_decay', 0.00001, 'Optimizer weight decay.')
+flags.DEFINE_float('opt_alpha', 0.00001, 'Optimizer schedule decay.')
 
 # Each epoch is a number of training steps and testing steps that randomly
 # sample data. This definition is suitable if the dataset is too large and
@@ -88,7 +89,7 @@ flags.DEFINE_integer('trainer_test_steps', 10000,  'Test steps per epoch.')
 flags.DEFINE_integer('trainer_epochs', 100000, 'Number of epoches to run.')
 flags.DEFINE_integer('trainer_interval', 10, 'Time interval for printing updates.')
 
-flags.DEFINE_string('main_checkpoint', 'checkpoint/obama',
+flags.DEFINE_string('main_checkpoint', 'checkpoint/schedule',
                     'Checkpoint location.')
 flags.DEFINE_enum('main_disc_loss', 'logcosh', ['logcosh', 'sigmoid'],
                   'The type of discriminator loss.')
@@ -140,12 +141,15 @@ def main(unused_argv):
         model = xmod.jit(ATNNFAE(
             encoder, decoder, discriminator, injector,
             random, ae_loss, gen_loss, disc_loss))
-        enc_opt = Momentum(encoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
+        enc_rate = InverseTimeSchedule(FLAGS.opt_rate, 0, FLAGS.opt_alpha)
+        enc_opt = Momentum(encoder.params, enc_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
-        dec_opt = Momentum(decoder.params, FLAGS.opt_rate, FLAGS.opt_coeff,
+        dec_rate = InverseTimeSchedule(FLAGS.opt_rate, 0, FLAGS.opt_alpha)
+        dec_opt = Momentum(decoder.params, dec_rate, FLAGS.opt_coeff,
                            FLAGS.opt_decay)
-        disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
-                            FLAGS.opt_coeff, FLAGS.opt_decay)
+        disc_rate = InverseTimeSchedule(FLAGS.opt_rate, 0, FLAGS.opt_alpha)
+        disc_opt = Momentum(discriminator.params, disc_rate, FLAGS.opt_coeff,
+                            FLAGS.opt_decay)
         optimizer = xopt.jit(xopt.Container(enc_opt, dec_opt, disc_opt))
     elif FLAGS.main_model == 'atniae':
         injector = InputInjector(FLAGS.enc_input, FLAGS.inj_beta)
@@ -154,10 +158,13 @@ def main(unused_argv):
         model = xmod.jit(ATNIAE(
             autoencoder, discriminator, injector, random,
             ae_loss, gen_loss, disc_loss))
-        autoencoder_opt = Momentum(autoencoder.params, FLAGS.opt_rate,
+        autoencoder_rate = InverseTimeSchedule(
+            FLAGS.opt_rate, 0, FLAGS.opt_alpha)
+        autoencoder_opt = Momentum(autoencoder.params, autoencoder_rate,
                                    FLAGS.opt_coeff, FLAGS.opt_decay)
-        disc_opt = Momentum(discriminator.params, FLAGS.opt_rate,
-                            FLAGS.opt_coeff, FLAGS.opt_decay)
+        disc_rate = InverseTimeSchedule(FLAGS.opt_rate, 0, FLAGS.opt_alpha)
+        disc_opt = Momentum(discriminator.params, disc_rate, FLAGS.opt_coeff,
+                            FLAGS.opt_decay)
         optimizer = xopt.jit(xopt.Container(autoencoder_opt, disc_opt))
     evaluator = xeval.jit(Evaluator())
     learner = Learner(optimizer, model, None, evaluator)
@@ -180,8 +187,8 @@ def main(unused_argv):
         + '_feat_sigmoid-{}'.format(FLAGS.ae_loss_weight)
         + '_logcosh-{}'.format(FLAGS.gen_loss_weight)
         + '_{}-{}'.format(FLAGS.main_disc_loss, FLAGS.disc_loss_weight)
-        + '_mom-{}-{}-{}'.format(
-            FLAGS.opt_rate, FLAGS.opt_coeff, FLAGS.opt_decay)
+        + '_mom-{}-{}-{}-{}'.format(
+            FLAGS.opt_rate, FLAGS.opt_coeff, FLAGS.opt_decay, FLAGS.opt_alpha)
         + '_byte-{}-{}-{}-{}'.format(
             FLAGS.data_batch, FLAGS.data_step, FLAGS.data_min, FLAGS.data_max))
     run = Trainer(learner, data_train, data_valid, FLAGS.trainer_train_steps,
