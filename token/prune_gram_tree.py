@@ -1,4 +1,4 @@
-"""Reduce sorted gram tree."""
+"""Prune sorted gram tree."""
 
 from absl import app
 from absl import flags
@@ -10,7 +10,7 @@ flags.DEFINE_string(
     'input', 'data/tinyshakespeare/train_gram_count_combined.txt',
     'Input file.')
 flags.DEFINE_string(
-    'output', 'data/tinyshakespeare/train_gram_count_reduced.txt',
+    'output', 'data/tinyshakespeare/train_gram_count_pruned.txt',
     'Output reduced file.')
 
 
