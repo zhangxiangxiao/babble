@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <memory>
 #include <queue>
+#include <string>
 #include <tuple>
 #include <vector>
 #include <utility>
@@ -19,25 +21,22 @@ DEFINE_string(output, "data/tinyshakespeare/train_gram_count_combined.txt",
               "Output file.");
 
 namespace fs = std::filesystem;
-typedef std::vector<uint8_t> ByteVector;
-typedef std::pair<ByteVector, int64_t> KeyValuePair;
-typedef std::tuple<ByteVector, int64_t, size_t> ItemTuple;
+typedef std::pair<std::string, int64_t> KeyValuePair;
+typedef std::tuple<std::string, int64_t, size_t> ItemTuple;
 typedef std::priority_queue<
   ItemTuple, std::vector<ItemTuple>, std::greater<ItemTuple>> PriorityQueue;
 
 
 bool readKeyValue(FILE *fd, KeyValuePair *kv) {
-  char hex[3];
+  static char buffer[1024 + 1];
   kv->first.clear();
   // Skip the beginning white spaces and read the first hex.
-  if (fscanf(fd, " %2[0123456789ABCDEFabcdef]", hex) != 1 ||
-      hex[0] == '\0' || hex[1] == '\0') {
+  if (fscanf(fd, " %1024[0123456789ABCDEFabcdef]", buffer) != 1) {
     return false;
   }
-  kv->first.push_back(static_cast< uint8_t >(strtoul(hex, nullptr, 16)));
-  while(fscanf(fd, "%2[0123456789ABCDEFabcdef]", hex) == 1 &&
-        hex[0] != '\0' && hex[1] != '\0') {
-    kv->first.push_back(static_cast< uint8_t >(strtoul(hex, nullptr, 16)));
+  kv->first.append(buffer);
+  while (fscanf(fd, "%1024[0123456789ABCDEFabcdef]", buffer) == 1) {
+    kv->first.append(buffer);
   }
   // Skip the beginning white spaces and read the first value.
   if (fscanf(fd, " %lu", &kv->second) != 1) {
@@ -47,10 +46,7 @@ bool readKeyValue(FILE *fd, KeyValuePair *kv) {
 }
 
 void writeKeyValue(const KeyValuePair &kv, FILE *fd) {
-  for (uint8_t byte : kv.first) {
-    fprintf(fd, "%2.2x", byte);
-  }
-  fprintf(fd, " %lu\n", kv.second);
+  fprintf(fd, "%s %lu\n", kv.first.c_str(), kv.second);
 }
 
 int combineGramCount() {
