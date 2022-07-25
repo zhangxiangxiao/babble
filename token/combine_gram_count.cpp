@@ -18,7 +18,6 @@ DEFINE_string(input_prefix, "data/tinyshakespeare/train_gram_count_sorted.",
 DEFINE_string(output, "data/tinyshakespeare/train_gram_count_combined.txt",
               "Output file.");
 
-
 namespace fs = std::filesystem;
 typedef std::vector<uint8_t> ByteVector;
 typedef std::pair<ByteVector, int64_t> KeyValuePair;
